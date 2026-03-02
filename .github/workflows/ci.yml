@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+          cache-dependency-path: |
+            build.gradle.kts
+            gradle/libs.versions.toml
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build and check
+        run: ./gradlew check

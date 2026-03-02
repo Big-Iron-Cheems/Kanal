@@ -1,0 +1,101 @@
+public abstract interface class io/github/bigironcheems/kanal/Cancellable {
+	public fun cancel ()V
+	public abstract fun isCancelled ()Z
+	public abstract fun setCancelled (Z)V
+}
+
+public final class io/github/bigironcheems/kanal/Cancellable$DefaultImpls {
+	public static fun cancel (Lio/github/bigironcheems/kanal/Cancellable;)V
+}
+
+public abstract interface class io/github/bigironcheems/kanal/Event {
+}
+
+public abstract interface class io/github/bigironcheems/kanal/EventBus {
+	public static final field Companion Lio/github/bigironcheems/kanal/EventBus$Companion;
+	public static fun create ()Lio/github/bigironcheems/kanal/EventBus;
+	public static fun createWithHandler (Ljava/util/function/Consumer;)Lio/github/bigironcheems/kanal/EventBus;
+	public abstract fun isListening (Ljava/lang/Class;)Z
+	public abstract fun isListeningAll ()Z
+	public abstract fun post (Lio/github/bigironcheems/kanal/Event;)Lio/github/bigironcheems/kanal/Event;
+	public fun subscribe (Ljava/lang/Class;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract synthetic fun subscribe (Ljava/lang/Class;ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract fun subscribe (Ljava/lang/Object;)V
+	public fun subscribeAll (ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract synthetic fun subscribeAll (ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract fun subscribeStatic (Ljava/lang/Class;)V
+	public abstract fun unsubscribe (Ljava/lang/Object;)V
+	public abstract fun unsubscribeAll ()V
+	public abstract fun unsubscribeStatic (Ljava/lang/Class;)V
+}
+
+public final class io/github/bigironcheems/kanal/EventBus$Companion {
+	public final fun create ()Lio/github/bigironcheems/kanal/EventBus;
+	public final fun createWithHandler (Ljava/util/function/Consumer;)Lio/github/bigironcheems/kanal/EventBus;
+	public final synthetic fun invoke (Lkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/EventBus;
+}
+
+public final class io/github/bigironcheems/kanal/EventBus$DefaultImpls {
+	public static fun subscribe (Lio/github/bigironcheems/kanal/EventBus;Ljava/lang/Class;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public static fun subscribeAll (Lio/github/bigironcheems/kanal/EventBus;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+}
+
+public final class io/github/bigironcheems/kanal/EventBusKt {
+	public static final fun subscribeAll (Lio/github/bigironcheems/kanal/EventBus;ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public static synthetic fun subscribeAll$default (Lio/github/bigironcheems/kanal/EventBus;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/bigironcheems/kanal/Subscription;
+}
+
+public abstract interface class io/github/bigironcheems/kanal/Modifiable {
+	public abstract fun getValue ()Ljava/lang/Object;
+	public abstract fun setValue (Ljava/lang/Object;)V
+}
+
+public final class io/github/bigironcheems/kanal/Priority {
+	public static final field HIGH I
+	public static final field HIGHEST I
+	public static final field INSTANCE Lio/github/bigironcheems/kanal/Priority;
+	public static final field LOW I
+	public static final field LOWEST I
+	public static final field NORMAL I
+}
+
+public abstract interface annotation class io/github/bigironcheems/kanal/Subscribe : java/lang/annotation/Annotation {
+	public abstract fun priority ()I
+}
+
+public abstract interface class io/github/bigironcheems/kanal/Subscription : java/lang/AutoCloseable {
+	public abstract fun cancel ()V
+	public fun close ()V
+}
+
+public final class io/github/bigironcheems/kanal/Subscription$DefaultImpls {
+	public static fun close (Lio/github/bigironcheems/kanal/Subscription;)V
+}
+
+public abstract interface class io/github/bigironcheems/kanal/TypedEventBus {
+	public abstract fun getDelegate ()Lio/github/bigironcheems/kanal/EventBus;
+	public abstract fun isListening (Ljava/lang/Class;)Z
+	public abstract fun post (Lio/github/bigironcheems/kanal/Event;)Lio/github/bigironcheems/kanal/Event;
+	public fun subscribe (Ljava/lang/Class;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract synthetic fun subscribe (Ljava/lang/Class;ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract fun subscribe (Ljava/lang/Object;)V
+	public fun subscribeAll (ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public abstract synthetic fun subscribeAll (ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public fun subscribeStatic (Ljava/lang/Class;)V
+	public abstract fun unsubscribe (Ljava/lang/Object;)V
+	public fun unsubscribeStatic (Ljava/lang/Class;)V
+}
+
+public final class io/github/bigironcheems/kanal/TypedEventBus$DefaultImpls {
+	public static fun subscribe (Lio/github/bigironcheems/kanal/TypedEventBus;Ljava/lang/Class;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public static fun subscribeAll (Lio/github/bigironcheems/kanal/TypedEventBus;ILjava/util/function/Consumer;)Lio/github/bigironcheems/kanal/Subscription;
+	public static fun subscribeStatic (Lio/github/bigironcheems/kanal/TypedEventBus;Ljava/lang/Class;)V
+	public static fun unsubscribeStatic (Lio/github/bigironcheems/kanal/TypedEventBus;Ljava/lang/Class;)V
+}
+
+public final class io/github/bigironcheems/kanal/TypedEventBusFactory {
+	public static final fun subscribeAll (Lio/github/bigironcheems/kanal/TypedEventBus;ILkotlin/jvm/functions/Function1;)Lio/github/bigironcheems/kanal/Subscription;
+	public static synthetic fun subscribeAll$default (Lio/github/bigironcheems/kanal/TypedEventBus;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/bigironcheems/kanal/Subscription;
+	public static final fun typed (Lio/github/bigironcheems/kanal/EventBus;Ljava/lang/Class;)Lio/github/bigironcheems/kanal/TypedEventBus;
+}
+
