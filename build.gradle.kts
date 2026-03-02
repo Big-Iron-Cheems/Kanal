@@ -90,8 +90,6 @@ publishing {
 mavenPublishing {
     coordinates(group.toString(), name.toString(), version.toString())
 
-    signAllPublications()
-
     pom {
         name.set("Kanal")
         description.set("A Kotlin-first, Java-compatible event-handler library.")
