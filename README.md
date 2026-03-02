@@ -135,6 +135,27 @@ Available benchmark classes in `src/jmh/kotlin/.../bench/`:
 
 ## Publishing
 
+### Meteor Maven
+
+Kanal is published to [Meteor Maven](https://maven.meteordev.org/). Consumers can use it by adding the repository to their project:
+
+```kotlin
+repositories {
+    maven {
+        name = "meteor-maven"
+        url = uri("https://maven.meteordev.org/releases")
+    }
+    maven {
+        name = "meteor-maven-snapshots"
+        url = uri("https://maven.meteordev.org/snapshots")
+    }
+}
+
+dependencies {
+    implementation("io.github.big-iron-cheems:kanal:0.1.0")
+}
+```
+
 ### Local (Maven Local)
 
 Publish to your local Maven repository for testing as a dependency in another project:

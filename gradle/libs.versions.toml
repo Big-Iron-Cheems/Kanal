@@ -4,12 +4,14 @@ jvm = "25"
 jmh = "1.37"
 jmhPlugin = "0.7.3"
 dokka = "2.1.0"
+mavenPublish = "0.36.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

@@ -30,3 +30,9 @@ jobs:
 
       - name: Build and check
         run: ./gradlew check
+
+      - name: Publish to Meteor Maven
+        run: ./gradlew publish
+        env:
+          MAVEN_METEOR_ALIAS: ${{ secrets.MAVEN_METEOR_ALIAS }}
+          MAVEN_METEOR_TOKEN: ${{ secrets.MAVEN_METEOR_TOKEN }}
