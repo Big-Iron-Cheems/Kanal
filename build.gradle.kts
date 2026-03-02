@@ -72,7 +72,7 @@ jmh {
 
 publishing {
     repositories {
-        maven("https://maven.meteordev.org/") {
+        maven("https://maven.meteordev.org/releases") {
             name = "meteordev"
 
             credentials {
