@@ -141,13 +141,8 @@ Kanal is published to [Meteor Maven](https://maven.meteordev.org/). Consumers ca
 
 ```kotlin
 repositories {
-    maven {
-        name = "meteor-maven"
-        url = uri("https://maven.meteordev.org/releases")
-    }
-    maven {
-        name = "meteor-maven-snapshots"
-        url = uri("https://maven.meteordev.org/snapshots")
+    maven("https://maven.meteordev.org/releases") {
+        name = "meteordev"
     }
 }
 
