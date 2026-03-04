@@ -262,6 +262,12 @@ public interface EventBus {
      * so a wildcard at [Priority.HIGHEST] fires before typed handlers at [Priority.NORMAL].
      * Cancellation stops both wildcard and typed handlers uniformly.
      *
+     * Wildcard handlers are always synchronous. When a wildcard falls after an async handler in
+     * the dispatch chain it runs on whichever thread completed the prior async step, not the
+     * posting thread. Code that relies on thread-local state (e.g. MDC logging context) will
+     * not see the posting thread's context and should not be used in a wildcard handler on a
+     * bus with async handlers.
+     *
      * Kotlin callers should prefer the [subscribeAll] extension which defaults priority to [Priority.NORMAL].
      * Java callers use the [Consumer] overload.
      *

@@ -159,6 +159,12 @@ public interface TypedEventBus<E : Event> {
      * Registers a wildcard handler that fires for every event posted to the underlying bus.
      *
      * Wildcard handlers are merged into the same priority-sorted dispatch list as typed handlers.
+     * Wildcard handlers are always synchronous. When a wildcard falls after an async handler in
+     * the dispatch chain it runs on whichever thread completed the prior async step, not the
+     * posting thread. Code that relies on thread-local state (e.g. MDC logging context) will
+     * not see the posting thread's context and should not be used in a wildcard handler on a
+     * bus with async handlers.
+     *
      * Kotlin callers should prefer the [subscribeAll] extension which defaults priority to [Priority.NORMAL].
      *
      * @return a [Subscription] whose [Subscription.cancel] removes this handler.

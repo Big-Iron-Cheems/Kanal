@@ -436,5 +436,81 @@ class AsyncDispatchTest {
         val future = bus.postAsync(SimpleEvent())
         assertTrue(future.isCompletedExceptionally, "postAsync must complete exceptionally on executor rejection")
     }
+
+    //  12. Wildcard handlers interleaved with async typed handlers
+
+    @Test
+    fun `wildcard between async typed handlers preserves mutation visibility`() {
+        // Wildcards are always sync. Chain: async typed HIGH sets value=1,
+        // sync wildcard NORMAL (via thenRun) doubles it, sync typed LOW reads result.
+        // thenRun after thenRunAsync only executes after the async step completes,
+        // so mutation visibility holds across the wildcard step.
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val bus = EventBus(executor)
+        val order = CopyOnWriteArrayList<String>()
+
+        val event = ModifiableEvent(0)
+
+        bus.subscribe<ModifiableEvent>(Priority.HIGH, async = true) { e ->
+            e.value = 1
+            order += "high-async"
+        }
+        bus.subscribeAll(Priority.NORMAL) { e ->
+            if (e is ModifiableEvent) {
+                assertEquals(1, e.value, "wildcard must see mutation from HIGH async handler")
+                e.value *= 10
+            }
+            order += "wildcard-sync"
+        }
+        bus.subscribe<ModifiableEvent>(Priority.LOW, async = false) { e ->
+            assertEquals(10, e.value, "LOW sync must see mutation from wildcard handler")
+            order += "low-sync"
+        }
+
+        bus.postAsync(event).get(5, TimeUnit.SECONDS)
+
+        assertEquals(listOf("high-async", "wildcard-sync", "low-sync"), order)
+        assertEquals(10, event.value)
+
+        executor.close()
+    }
+
+    @Test
+    fun `wildcard between async typed handlers fires in priority order`() {
+        // Confirm the wildcard's position in the chain is determined by its priority,
+        // not by registration order or type (wildcard vs typed).
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val bus = EventBus(executor)
+        val order = CopyOnWriteArrayList<String>()
+
+        bus.subscribe<ModifiableEvent>(Priority.HIGH, async = true) { order += "high-async" }
+        bus.subscribe<ModifiableEvent>(Priority.LOW, async = true) { order += "low-async" }
+        bus.subscribeAll(Priority.NORMAL) { order += "wildcard-sync" }
+
+        bus.postAsync(ModifiableEvent()).get(5, TimeUnit.SECONDS)
+
+        assertEquals(listOf("high-async", "wildcard-sync", "low-async"), order)
+
+        executor.close()
+    }
+
+    @Test
+    fun `wildcard preceding all async typed handlers runs on posting thread`() {
+        // A wildcard at HIGHEST runs in the leading sync prefix (before any async step).
+        // It is invoked directly on the posting thread with no chain involvement.
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val bus = EventBus(executor)
+        val postingThread = Thread.currentThread()
+        var wildcardThread: Thread? = null
+
+        bus.subscribeAll(Priority.HIGHEST) { wildcardThread = Thread.currentThread() }
+        bus.subscribe<ModifiableEvent>(Priority.NORMAL, async = true) { /* async step */ }
+
+        bus.postAsync(ModifiableEvent()).get(5, TimeUnit.SECONDS)
+
+        assertSame(postingThread, wildcardThread, "wildcard in sync prefix must run on the posting thread")
+
+        executor.close()
+    }
 }
 
