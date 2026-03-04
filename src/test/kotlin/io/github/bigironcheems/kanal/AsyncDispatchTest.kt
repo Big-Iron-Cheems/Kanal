@@ -1,7 +1,9 @@
 package io.github.bigironcheems.kanal
 
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,8 +22,8 @@ class AsyncDispatchTest {
     class ModifiableEvent(var value: Int = 0) : Event
 
     /**
-     * Deliberately NOT @Volatile: the bus must handle async-safe cancellation automatically
-     * via its internal AsyncCancellableGuard.
+     * Plain (non-volatile) isCancelled field: the bus handles async-safe cancellation
+     * automatically via its internal AsyncCancellableGuard.
      */
     class CancellableAsyncEvent : Event, Cancellable {
         override var isCancelled: Boolean = false
@@ -231,11 +233,10 @@ class AsyncDispatchTest {
     }
 
     @Test
-    fun `cancellation guard works without @Volatile, bus ensures cross-thread visibility`() {
-        // This is the core ergonomics guarantee: users do NOT need @Volatile on isCancelled.
+    fun `cancellation guard makes cross-thread visibility automatic`() {
         // The bus internally uses an AtomicBoolean (AsyncCancellableGuard) for the duration of
         // async dispatch, so cancellation set on an executor thread is always visible to the
-        // chain's next step.
+        // chain's next step. The isCancelled field on the event needs no special treatment.
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val bus = EventBus(executor)
         val thirdCalled = AtomicBoolean(false)
@@ -246,7 +247,7 @@ class AsyncDispatchTest {
         bus.subscribe<CancellableAsyncEvent>(Priority.LOW, async = false) { thirdCalled.set(true) }
 
         bus.postAsync(CancellableAsyncEvent()).get(5, TimeUnit.SECONDS)
-        assertFalse(thirdCalled.get(), "No subsequent handler should run; guard must work without @Volatile")
+        assertFalse(thirdCalled.get(), "No subsequent handler should run after cancellation")
     }
 
     //  6. Fallback to sync when no executor
@@ -384,6 +385,56 @@ class AsyncDispatchTest {
         sub.cancel()
         bus.postAsync(SimpleEvent()).get(5, TimeUnit.SECONDS)
         assertEquals(1, count.get(), "Handler should not be called after cancellation")
+    }
+
+    //  11. Executor rejection
+
+    @Test
+    fun `post routes RejectedExecutionException to exceptionHandler and does not throw`() {
+        val executor = Executors.newSingleThreadExecutor()
+        val errors = CopyOnWriteArrayList<Throwable>()
+        val bus = EventBus(executor) { t -> errors += t }
+
+        bus.subscribe<SimpleEvent>(async = true) { /* never runs */ }
+
+        executor.shutdown() // reject all future submissions
+
+        val event = SimpleEvent()
+        bus.post(event) // must not throw
+
+        // The rejection cause must have been routed to exceptionHandler.
+        assertEquals(1, errors.size, "exceptionHandler must receive exactly one error")
+        assertTrue(
+            errors[0] is RejectedExecutionException,
+            "Expected RejectedExecutionException, got ${errors[0]::class.simpleName}"
+        )
+    }
+
+    @Test
+    fun `post returns the event normally after executor rejection`() {
+        val executor = Executors.newSingleThreadExecutor()
+        val bus = EventBus(executor) { /* swallow */ }
+
+        bus.subscribe<SimpleEvent>(async = true) { /* never runs */ }
+
+        executor.shutdown()
+
+        val event = SimpleEvent()
+        val returned = bus.post(event)
+        assertSame(event, returned, "post must return the event even when the executor is shut down")
+    }
+
+    @Test
+    fun `postAsync completes exceptionally on executor rejection`() {
+        val executor = Executors.newSingleThreadExecutor()
+        val bus = EventBus(executor)
+
+        bus.subscribe<SimpleEvent>(async = true) { /* never runs */ }
+
+        executor.shutdown()
+
+        val future = bus.postAsync(SimpleEvent())
+        assertTrue(future.isCompletedExceptionally, "postAsync must complete exceptionally on executor rejection")
     }
 }
 

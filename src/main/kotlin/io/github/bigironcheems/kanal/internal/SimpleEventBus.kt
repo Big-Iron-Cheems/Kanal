@@ -45,11 +45,13 @@ import java.util.function.Consumer
  *   cancellation mid-list stops both wildcard and typed handlers the same way.
  *   Adding/removing a wildcard invalidates [dispatchCache] (same as any other mutation).
  *
- * - `dispatchCache: ConcurrentHashMap<Class<*>, List<ListenerEntry>>`; keyed by the *concrete*
+ * - `dispatchCache: ConcurrentHashMap<Class<*>, DispatchList>`; keyed by the *concrete*
  *   runtime class of a posted event. On first post of a novel type the cache is populated by
  *   walking the full supertype hierarchy (BFS over superclasses + interfaces), merging all
- *   matching listener lists, and sorting by priority. Every subsequent post of the same type
- *   is a single `ConcurrentHashMap.get` followed by a list iteration; no BFS, no sort.
+ *   matching listener lists, and sorting by priority. [DispatchList.hasAnyAsync] is pre-computed
+ *   at build time so the hot path never scans entries to decide whether to enter the async branch.
+ *   Every subsequent post of the same type is a single `ConcurrentHashMap.get` followed by a
+ *   list iteration; no BFS, no sort, no scan.
  *   The cache is fully invalidated on any subscribe/unsubscribe (which is rare).
  *
  * - `invokerFactoryCache: ConcurrentHashMap<Method, (Any?) -> (Any?, Event) -> Unit>`; shared
@@ -116,6 +118,20 @@ internal class SimpleEventBus(
         val invoke: (Any?, Event) -> Unit
     )
 
+    /**
+     * Cached result of a dispatch list build for a given concrete event type.
+     *
+     * [hasAnyAsync] is pre-computed once at cache-build time so [post] and [postAsync]
+     * can branch without scanning the list on every call.
+     */
+    private class DispatchList(
+        val entries: List<ListenerEntry>,
+        val hasAnyAsync: Boolean,
+    ) {
+        val isEmpty: Boolean get() = entries.isEmpty()
+        operator fun iterator() = entries.iterator()
+    }
+
     //  State
 
     // Map from event Class -> sorted list of directly-registered listeners.
@@ -134,11 +150,13 @@ internal class SimpleEventBus(
      * On first `post` of a given concrete type we walk its entire supertype
      * hierarchy (superclasses + interfaces), merge all matching listener lists
      * into a single priority-sorted snapshot, and cache it here.
+     * [DispatchList.hasAnyAsync] is pre-computed at build time so the hot dispatch
+     * path never scans the list to determine whether to enter the async branch.
      *
      * The cache is **invalidated** (cleared) whenever any listener is added or
      * removed; subscribe/unsubscribe is rare, post is hot.
      */
-    private val dispatchCache = ConcurrentHashMap<Class<*>, List<ListenerEntry>>()
+    private val dispatchCache = ConcurrentHashMap<Class<*>, DispatchList>()
 
     // Tracks (identityHashCode, method) pairs for idempotent subscribe.
     private val registeredPairs = HashSet<Pair<Int, Method>>()
@@ -186,8 +204,11 @@ internal class SimpleEventBus(
             dispatchCache.clear()
         }
         return object : Subscription {
+            private var cancelled = false
             override fun cancel() {
                 synchronized(lock) {
+                    if (cancelled) return
+                    cancelled = true
                     listeners[eventClass]?.remove(entry)
                     dispatchCache.clear()
                 }
@@ -202,8 +223,11 @@ internal class SimpleEventBus(
             dispatchCache.clear()
         }
         return object : Subscription {
+            private var cancelled = false
             override fun cancel() {
                 synchronized(lock) {
+                    if (cancelled) return
+                    cancelled = true
                     wildcardListeners.remove(entry)
                     dispatchCache.clear()
                 }
@@ -239,24 +263,28 @@ internal class SimpleEventBus(
     }
 
     override fun <T : Event> post(event: T): T {
-        val list = resolveDispatchList(event) ?: return event
-        if (list.isEmpty()) return event
+        val dl = resolveDispatchList(event) ?: return event
+        if (dl.isEmpty) return event
 
         val executor = asyncExecutor
-        return if (executor != null && list.any { it.async }) {
+        return if (executor != null && dl.hasAnyAsync) {
             // One or more handlers are async: build a chained future and block until done.
             // NOTE: this makes `post` a blocking call when async handlers are present.
             // It is safe with virtual-thread executors but can deadlock on bounded platform-thread
             // pools if a handler re-entrantly posts another event on the same pool. See `postAsync`
             // for a non-blocking alternative.
             val guard = (event as? Cancellable)?.let { AsyncCancellableGuard(it) }
-            buildDispatchChain(event, list, executor, guard).join()
+            try {
+                buildDispatchChain(event, dl.entries, executor, guard).join()
+            } catch (e: java.util.concurrent.CompletionException) {
+                exceptionHandler(e.cause ?: e)
+            }
             guard?.flush()
             event
         } else {
             // Pure sync path, no allocations.
             val cancellable = event as? Cancellable
-            for (entry in list) {
+            for (entry in dl) {
                 if (cancellable?.isCancelled == true) break
                 invokeEntry(entry, event)
             }
@@ -265,15 +293,15 @@ internal class SimpleEventBus(
     }
 
     override fun <T : Event> postAsync(event: T): CompletableFuture<T> {
-        val list = resolveDispatchList(event)
-        if (list.isNullOrEmpty()) {
+        val dl = resolveDispatchList(event)
+        if (dl == null || dl.isEmpty) {
             return CompletableFuture.completedFuture(event)
         }
 
         val executor = asyncExecutor
-        return if (executor != null && list.any { it.async }) {
+        return if (executor != null && dl.hasAnyAsync) {
             val guard = (event as? Cancellable)?.let { AsyncCancellableGuard(it) }
-            buildDispatchChain(event, list, executor, guard).thenApply {
+            buildDispatchChain(event, dl.entries, executor, guard).thenApply {
                 guard?.flush()
                 event
             }
@@ -282,7 +310,7 @@ internal class SimpleEventBus(
             // list has async=true: run synchronously and return an already-completed future.
             // No CompletableFuture chain is built; no allocations beyond the completed future wrapper.
             val cancellable = event as? Cancellable
-            for (entry in list) {
+            for (entry in dl) {
                 if (cancellable?.isCancelled == true) break
                 invokeEntry(entry, event)
             }
@@ -291,9 +319,9 @@ internal class SimpleEventBus(
     }
 
     /**
-     * Resolves the dispatch list for the given event, returning `null` if no handlers exist.
+     * Resolves the [DispatchList] for the given event, returning `null` if no handlers exist.
      */
-    private fun resolveDispatchList(event: Event): List<ListenerEntry>? {
+    private fun resolveDispatchList(event: Event): DispatchList? {
         val concreteClass = event::class.java
         val cached = dispatchCache[concreteClass]
         return when {
@@ -308,13 +336,11 @@ internal class SimpleEventBus(
     /**
      * Builds a chained [CompletableFuture] that dispatches all [entries] in priority order,
      * preserving mutation visibility between handlers. Async entries are submitted to [executor];
-     * sync entries that follow an async one are chained via `thenApply` to ensure they observe
+     * sync entries that follow an async one are chained via `thenRun` to ensure they observe
      * all mutations from higher-priority async handlers.
      *
      * Cancellation is checked via [guard] (an [AsyncCancellableGuard] wrapping the event's
-     * [Cancellable] interface, if present). The guard's [AtomicBoolean] is the authoritative
-     * in-flight cancellation flag, making cross-thread cancellation visibility automatic.
-     * Users do not need `@Volatile` on their `isCancelled` field.
+     * [Cancellable] interface, if present), making cross-thread cancellation visibility automatic.
      *
      * Exceptions from handlers are routed to [exceptionHandler]. The future never completes
      * exceptionally due to handler errors; only infrastructure failures (e.g. executor rejection)
@@ -329,8 +355,8 @@ internal class SimpleEventBus(
         entries: List<ListenerEntry>,
         executor: Executor,
         guard: AsyncCancellableGuard?,
-    ): CompletableFuture<Unit> {
-        var chain: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit)
+    ): CompletableFuture<*> {
+        var chain: CompletableFuture<*> = CompletableFuture.completedFuture(null)
         var hasAsyncInChain = false
 
         for (entry in entries) {
@@ -349,30 +375,28 @@ internal class SimpleEventBus(
 
     /** Appends an async handler step to [chain], dispatched on [executor]. */
     private fun chainAsync(
-        chain: CompletableFuture<Unit>,
+        chain: CompletableFuture<*>,
         entry: ListenerEntry,
         event: Event,
         guard: AsyncCancellableGuard?,
         executor: Executor,
-    ): CompletableFuture<Unit> = chain.thenApplyAsync({
+    ) = chain.thenRunAsync({
         // Sync the atomic from the delegate under the happens-before edge provided by the
         // prior future's completion, then check before invoking.
         guard?.syncFromDelegate()
         if (guard?.isCancelled != true) invokeEntry(entry, event)
-        Unit
     }, executor)
 
     /** Appends a sync handler step to [chain] (runs on the completing thread of the prior step). */
     private fun chainSync(
-        chain: CompletableFuture<Unit>,
+        chain: CompletableFuture<*>,
         entry: ListenerEntry,
         event: Event,
         guard: AsyncCancellableGuard?,
-    ): CompletableFuture<Unit> = chain.thenApply {
+    ) = chain.thenRun {
         guard?.syncFromDelegate()
-        if (guard?.isCancelled == true) return@thenApply Unit
+        if (guard?.isCancelled == true) return@thenRun
         invokeEntry(entry, event)
-        Unit
     }
 
     /** Invokes [entry] directly, routing any exception to [exceptionHandler]. */
@@ -399,7 +423,7 @@ internal class SimpleEventBus(
      *
      * Called at most once per concrete event type (result is cached in [dispatchCache]).
      */
-    private fun buildDispatchList(eventClass: Class<*>): List<ListenerEntry> {
+    private fun buildDispatchList(eventClass: Class<*>): DispatchList {
         val merged = mutableListOf<ListenerEntry>()
         for (type in supertypes(eventClass)) {
             listeners[type]?.let { merged.addAll(it) }
@@ -407,7 +431,7 @@ internal class SimpleEventBus(
         merged.addAll(wildcardListeners)
         // Stable sort: preserve registration order within equal priorities.
         merged.sortWith(compareByDescending { it.priority })
-        return merged
+        return DispatchList(merged, merged.any { it.async })
     }
 
     /**

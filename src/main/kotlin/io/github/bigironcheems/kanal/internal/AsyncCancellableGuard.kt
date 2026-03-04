@@ -4,15 +4,15 @@ import io.github.bigironcheems.kanal.Cancellable
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Makes cancellation checks thread-safe during async dispatch
- * **without requiring `@Volatile` on the user's `isCancelled` field**.
+ * Makes cancellation checks thread-safe during async dispatch without requiring any special
+ * annotations or atomic types on the user's `isCancelled` field.
  *
  * ### Design
  *
  * The `CompletableFuture` chain that drives async dispatch provides a **happens-before** edge
  * between each successive step: the completion of stage N happens-before the start of stage N+1.
  * Any write to `delegate.isCancelled` performed inside stage N is therefore visible to the code
- * running in stage N+1 without `@Volatile` on the delegate's field.
+ * running in stage N+1 due to this edge.
  *
  * The guard exploits this by **polling** `delegate.isCancelled` at the *start* of each chain step
  * via [syncFromDelegate], which runs after the prior step's future has completed. If the prior
@@ -57,8 +57,7 @@ internal class AsyncCancellableGuard(
      * then propagates the result.
      */
     fun flush() {
-        // The join()/thenApply happens-before edge makes the last handler's write to
-        // delegate.isCancelled visible here without @Volatile.
+        // The join()/thenApply happens-before edge makes all handler writes visible here.
         val finalValue = flag.get() || delegate.isCancelled
         if (finalValue) delegate.isCancelled = true
     }

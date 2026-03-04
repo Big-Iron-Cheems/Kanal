@@ -3,7 +3,7 @@
 [![CI][badge-ci]][link-ci]
 [![Kotlin][badge-kotlin]][link-kotlin]
 [![JVM][badge-jvm]][link-jvm]
-[![Maven Central][badge-maven]][link-maven]
+[![Maven][badge-maven]][link-maven]
 [![License][badge-license]][link-license]
 
 A **Kotlin-first, Java-compatible** event-handler library targeting **JDK 25**.
@@ -56,14 +56,15 @@ sub.cancel()
 ```
 
 See [`src/examples/kotlin`](src/examples/kotlin/io/github/bigironcheems/kanal/examples)
-for executable examples covering all features (each file has a `main()`):
+for runnable Kotlin examples:
 
-| File                           | Covers                                                                            |
-|--------------------------------|-----------------------------------------------------------------------------------|
-| `BasicUsageExample.kt`         | Annotation subscribers, lambda subscribe, cancellable, modifiable, error handling |
-| `WildcardExample.kt`           | `subscribeAll`, priority interleaving, `isListeningAll`                           |
-| `TypedBusExample.kt`           | `TypedEventBus<E>`, sealed hierarchies, multi-bus, delegate access                |
-| `StaticAndSupertypeExample.kt` | Static subscribers (`@JvmStatic`), supertype dispatch                             |
+| File                                                                                                                      | Covers                                                                                                          |
+|---------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| [`BasicUsageExample.kt`](src/examples/kotlin/io/github/bigironcheems/kanal/examples/BasicUsageExample.kt)                 | Annotation subscribers, lambda subscribe, cancellable, modifiable, error handling                               |
+| [`WildcardExample.kt`](src/examples/kotlin/io/github/bigironcheems/kanal/examples/WildcardExample.kt)                     | `subscribeAll`, priority interleaving, `isListeningAll`                                                         |
+| [`TypedBusExample.kt`](src/examples/kotlin/io/github/bigironcheems/kanal/examples/TypedBusExample.kt)                     | `TypedEventBus<E>`, sealed hierarchies, multi-bus, delegate access                                              |
+| [`StaticAndSupertypeExample.kt`](src/examples/kotlin/io/github/bigironcheems/kanal/examples/StaticAndSupertypeExample.kt) | Static subscribers (`@JvmStatic`), supertype dispatch                                                           |
+| [`AsyncExample.kt`](src/examples/kotlin/io/github/bigironcheems/kanal/examples/AsyncExample.kt)                           | `postAsync`, annotation async handlers, blocking `post`, mixed dispatch, cancellation, fallback, error handling |
 
 ## Java usage
 
@@ -72,19 +73,23 @@ EventBus bus = EventBus.create();
 bus.subscribe(new MyListener());
 bus.post(new PlayerJumpEvent("Steve"));
 
-// Lambda subscribe
+// Lambda subscribe; returns a Subscription token
 Subscription sub = bus.subscribe(
     PlayerJumpEvent.class, Priority.NORMAL, e -> System.out.println(e.getPlayer())
 );
 sub.cancel();
-
-// Wildcard
-bus.subscribeAll(Priority.NORMAL, e -> System.out.println(e));
-
-// Typed bus
-TypedEventBus<NetworkEvent> networkBus = TypedEventBusFactory.typed(bus, NetworkEvent.class);
-networkBus.post(new PacketReceived(bytes));
 ```
+
+See [`src/examples/java`](src/examples/java/io/github/bigironcheems/kanal/examples)
+for runnable Java examples:
+
+| File                                                                                                                        | Covers                                                                                                       |
+|-----------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| [`BasicUsageExample.java`](src/examples/java/io/github/bigironcheems/kanal/examples/BasicUsageExample.java)                 | Annotation subscribers, lambda subscribe, cancellable, modifiable, error handling, typed bus                 |
+| [`WildcardExample.java`](src/examples/java/io/github/bigironcheems/kanal/examples/WildcardExample.java)                     | `subscribeAll`, priority interleaving, `isListeningAll`                                                      |
+| [`TypedBusExample.java`](src/examples/java/io/github/bigironcheems/kanal/examples/TypedBusExample.java)                     | `TypedEventBusFactory.typed`, sealed hierarchies, delegate access                                            |
+| [`StaticAndSupertypeExample.java`](src/examples/java/io/github/bigironcheems/kanal/examples/StaticAndSupertypeExample.java) | `@JvmStatic` subscribers, supertype dispatch                                                                 |
+| [`AsyncExample.java`](src/examples/java/io/github/bigironcheems/kanal/examples/AsyncExample.java)                           | `EventBus.create(executor)`, `Consumer` async subscribe, `postAsync`, cancellation, fallback, error handling |
 
 ## Async dispatch
 
@@ -122,9 +127,8 @@ val event = bus.postAsync(PacketReceived(bytes)).join()
 - Priority ordering is preserved; handlers execute in priority order regardless of async flag.
 - Mutation visibility is guaranteed; a lower-priority sync handler always observes mutations
   from higher-priority async handlers (the chain drains before each sync step).
-- Cancellation works automatically and is thread-safe. No `@Volatile` or `AtomicBoolean`
-  required on your `isCancelled` field. The bus wraps cancellation in an `AtomicBoolean` for
-  the duration of the async chain and writes the result back to the event once all handlers
+- Cancellation is automatically thread-safe. The bus wraps cancellation in an `AtomicBoolean`
+  for the duration of the async chain and writes the result back to the event once all handlers
   complete. A plain `var isCancelled = false` is sufficient.
 - `postAsync` never completes exceptionally due to handler errors; exceptions route to the
   bus's `exceptionHandler`. Only infrastructure failure (executor rejection) is exceptional.
@@ -250,12 +254,12 @@ Apache 2.0, see [LICENSE](LICENSE).
 [badge-ci]: https://github.com/Big-Iron-Cheems/Kanal/actions/workflows/ci.yml/badge.svg
 [badge-kotlin]: https://img.shields.io/badge/kotlin-2.1-7F52FF?logo=kotlin&logoColor=white
 [badge-jvm]: https://img.shields.io/badge/JVM-25-orange?logo=openjdk&logoColor=white
-[badge-maven]: https://img.shields.io/maven-central/v/io.github.big-iron-cheems/kanal?logo=apachemaven&logoColor=white
+[badge-maven]: https://img.shields.io/badge/meteor--maven-0.1.0-blue?logo=apachemaven&logoColor=white
 [badge-license]: https://img.shields.io/github/license/Big-Iron-Cheems/Kanal?logo=apache&logoColor=white
 
 [//]: # (Link definitions)
 [link-ci]: https://github.com/Big-Iron-Cheems/Kanal/actions/workflows/ci.yml
 [link-kotlin]: https://kotlinlang.org
 [link-jvm]: https://openjdk.org/projects/jdk/25/
-[link-maven]: https://central.sonatype.com/artifact/io.github.big-iron-cheems/kanal
+[link-maven]: https://maven.meteordev.org/#/releases/io/github/big-iron-cheems/kanal
 [link-license]: https://github.com/Big-Iron-Cheems/Kanal/blob/main/LICENSE

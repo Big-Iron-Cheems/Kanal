@@ -23,12 +23,11 @@ package io.github.bigironcheems.kanal
  *
  * ### Async dispatch
  *
- * No special annotations (`@Volatile`, `AtomicBoolean`, etc.) are required on `isCancelled`
- * even when the event is posted via [EventBus.postAsync] or to a bus with async handlers.
- * The bus automatically wraps the cancellation check in an [java.util.concurrent.atomic.AtomicBoolean]
- * for the duration of the async dispatch chain, making cross-thread cancellation visibility
- * transparent. The final cancelled state is written back to this field once after all handlers
- * have completed.
+ * Cancellation is automatically thread-safe when the event is posted via [EventBus.postAsync]
+ * or to a bus with async handlers. The bus wraps the cancellation check in an
+ * [java.util.concurrent.atomic.AtomicBoolean] for the duration of the async dispatch chain,
+ * making cross-thread cancellation visibility transparent. The final cancelled state is written
+ * back to this field once after all handlers have completed.
  */
 public interface Cancellable {
     /** Whether this event has been cancelled. */

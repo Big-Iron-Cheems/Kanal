@@ -561,10 +561,13 @@ class EventBusTest {
         val bus = EventBus()
         var count = 0
         val sub = bus.subscribe<SimpleEvent> { count++ }
-        sub.cancel()
-        sub.cancel()   // must not throw
+        // warm the dispatch cache so a spurious clear would be detectable
         bus.post(SimpleEvent())
-        assertEquals(0, count)
+        assertEquals(1, count)
+        sub.cancel()
+        sub.cancel()   // must not throw, must not re-clear cache or mutate state
+        bus.post(SimpleEvent())
+        assertEquals(1, count, "handler must not fire after cancel; double-cancel must be a no-op")
     }
 
     @Test
@@ -956,6 +959,20 @@ class EventBusTest {
         sub.cancel()
         bus.post(SimpleEvent())
         assertEquals(1, count)
+    }
+
+    @Test
+    fun `subscribeAll subscription cancel is idempotent`() {
+        val bus = EventBus()
+        var count = 0
+        val sub = bus.subscribeAll { count++ }
+        // warm the dispatch cache so a spurious clear would be detectable
+        bus.post(SimpleEvent())
+        assertEquals(1, count)
+        sub.cancel()
+        sub.cancel()   // must not throw, must not re-clear cache or mutate state
+        bus.post(SimpleEvent())
+        assertEquals(1, count, "wildcard handler must not fire after cancel; double-cancel must be a no-op")
     }
 
     @Test

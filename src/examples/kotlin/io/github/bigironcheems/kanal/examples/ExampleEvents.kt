@@ -10,3 +10,11 @@ class BlockBreakEvent(val block: String) : Event, Cancellable {
 }
 
 class DamageEvent(override var value: Double) : Event, Modifiable<Double>
+
+// Async example events
+
+class PacketEvent(val bytes: ByteArray) : Event
+
+class NetworkRequestEvent(val url: String) : Event, Cancellable {
+    override var isCancelled: Boolean = false
+}

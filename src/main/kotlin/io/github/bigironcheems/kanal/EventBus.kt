@@ -191,10 +191,11 @@ public interface EventBus {
      * ### Infrastructure failures
      *
      * If the configured executor rejects the submitted work (e.g. it has been shut down),
-     * [java.util.concurrent.CompletionException] propagates out of this method. This is an
-     * infrastructure failure - not a handler error - and is intentionally not routed to
-     * `exceptionHandler`. Handler exceptions are still swallowed into `exceptionHandler` and
-     * never propagate here.
+     * the rejection is routed to `exceptionHandler` rather than propagating to the caller.
+     * This preserves the historical contract that `post` never throws due to dispatch
+     * infrastructure. Use [postAsync] if you need to distinguish executor rejection from
+     * handler errors at the call site — `postAsync` completes exceptionally on rejection
+     * rather than routing to `exceptionHandler`.
      *
      * @return the same [event] instance, for convenient one-liner posting.
      */
@@ -212,14 +213,16 @@ public interface EventBus {
      * **Error handling:** the future never completes exceptionally due to a handler error.
      * Exceptions are routed to the bus's `exceptionHandler` as in sync mode. The future
      * only completes exceptionally on infrastructure failure (e.g. executor rejected execution).
+     * This is the reverse of [post], which routes infrastructure failures to `exceptionHandler`
+     * to preserve its no-throw contract. Use `postAsync` when you need to observe or recover
+     * from executor rejection at the call site.
      *
      * If no executor is configured on this bus, all handlers run synchronously on the calling
      * thread and the returned future is already completed when this method returns.
      *
      * **Cancellation:** for [Cancellable] events, cancellation is automatically thread-safe.
-     * No `@Volatile` annotation or `AtomicBoolean` is needed on the `isCancelled` field. The
-     * bus wraps cancellation in an [java.util.concurrent.atomic.AtomicBoolean] for the duration
-     * of the chain and writes the result back to the event once all handlers complete.
+     * The bus wraps cancellation in an [java.util.concurrent.atomic.AtomicBoolean] for the
+     * duration of the chain and writes the result back to the event once all handlers complete.
      *
      * @return a [CompletableFuture] completing with the event instance after all handlers finish.
      */
