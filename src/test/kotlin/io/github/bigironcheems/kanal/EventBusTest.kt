@@ -4,7 +4,7 @@ import kotlin.test.*
 
 class EventBusTest {
 
-    // ── Shared fixture events ────────────────────────────────────────────────
+    // Shared fixture events
 
     class SimpleEvent : Event
     class OtherEvent : Event
@@ -12,7 +12,7 @@ class EventBusTest {
         override var isCancelled = false
     }
 
-    // ── 1. Basic dispatch ────────────────────────────────────────────────────
+    // 1. Basic dispatch
 
     @Test
     fun `posted event is received by a subscribed handler`() {
@@ -60,7 +60,7 @@ class EventBusTest {
         assertFalse(called)
     }
 
-    // ── 2. Subscribe / unsubscribe lifecycle ─────────────────────────────────
+    // 2. Subscribe / unsubscribe lifecycle
 
     @Test
     fun `unsubscribed handler is no longer called`() {
@@ -102,7 +102,7 @@ class EventBusTest {
         assertEquals(1, count)
     }
 
-    // ── 3. Priority ordering ─────────────────────────────────────────────────
+    //  3. Priority ordering
 
     @Test
     fun `handlers fire in descending priority order`() {
@@ -158,7 +158,7 @@ class EventBusTest {
         assertEquals(listOf(1, 2, 3), order)
     }
 
-    // ── 4. Cancellation ──────────────────────────────────────────────────────
+    // 4. Cancellation
 
     @Test
     fun `dispatch stops after a handler cancels the event`() {
@@ -209,7 +209,7 @@ class EventBusTest {
         assertEquals(3, count)
     }
 
-    // ── 5. Static / companion-object handlers ────────────────────────────────
+    // 5. Static / companion-object handlers
 
     object StaticListener {
         var fired = false
@@ -240,7 +240,7 @@ class EventBusTest {
         assertFalse(StaticListener.fired)
     }
 
-    // ── 6. Multiple event types on one bus ───────────────────────────────────
+    // 6. Multiple event types on one bus
 
     @Test
     fun `bus routes each event type independently`() {
@@ -268,7 +268,7 @@ class EventBusTest {
         assertEquals(1, otherCount)
     }
 
-    // ── 7. isListening ───────────────────────────────────────────────────────
+    // 7. isListening
 
     @Test
     fun `isListening returns false when no handlers are registered`() {
@@ -286,7 +286,7 @@ class EventBusTest {
         assertTrue(bus.isListening(SimpleEvent::class.java))
     }
 
-    // ── 8. Exception handling ────────────────────────────────────────────────
+    // 8. Exception handling
 
     @Test
     fun `exception in handler is forwarded to exceptionHandler and dispatch continues`() {
@@ -313,7 +313,7 @@ class EventBusTest {
         assertTrue(secondCalled, "Dispatch should continue after a handler exception")
     }
 
-    // ── 9. Supertype dispatch ────────────────────────────────────────────────
+    // 9. Supertype dispatch
 
     open class BaseEvent : Event
     class ConcreteEvent : BaseEvent()
@@ -419,7 +419,7 @@ class EventBusTest {
         assertEquals(1, count)
     }
 
-    // ── 10. Lambda subscribe ─────────────────────────────────────────────────
+    // 10. Lambda subscribe
 
     @Test
     fun `lambda subscribe fires on matching event`() {
@@ -462,7 +462,7 @@ class EventBusTest {
         assertTrue(bus.isListening<SimpleEvent>())
     }
 
-    // ── 11. Modifiable events ─────────────────────────────────────────────────
+    // 11. Modifiable events
 
     class DamageEvent(override var value: Double) : Event, Modifiable<Double>
     class MessageEvent(override var value: String) : Event, Modifiable<String>
@@ -543,7 +543,7 @@ class EventBusTest {
         assertEquals(10.0, result)
     }
 
-    // ── 12. Subscription token + unsubscribeAll ───────────────────────────────
+    // 12. Subscription token + unsubscribeAll
 
     @Test
     fun `subscription cancel stops handler from firing`() {
@@ -625,7 +625,7 @@ class EventBusTest {
         assertFalse(bus.isListening<SimpleEvent>())
     }
 
-    // ── 13. Kotlin object subscriber paths ───────────────────────────────────
+    // 13. Kotlin object subscriber paths
 
     object MixedObject {
         var staticFired = false
@@ -670,7 +670,7 @@ class EventBusTest {
         assertFalse(MixedObject.instanceFired)
     }
 
-    // ── 14. Empty-listener cache fix ─────────────────────────────────────────
+    // 14. Empty-listener cache fix
 
     @Test
     fun `posting an unlistened event type does not pollute dispatch cache`() {
@@ -700,7 +700,7 @@ class EventBusTest {
         assertEquals(1, count)
     }
 
-    // ── 15. Override deduplication ────────────────────────────────────────────
+    // 15. Override deduplication
 
     @Test
     fun `overriding an @Subscribe method without re-annotating opts out of dispatch`() {
@@ -778,7 +778,7 @@ class EventBusTest {
         assertEquals(listOf("base", "sub"), fired)
     }
 
-    // ── 16. Java Modifiable interop ───────────────────────────────────────────
+    // 16. Java Modifiable interop
 
     // Simulates what a Java class implementing Modifiable<Double> would look like
     // (Kotlin approximation; a Java interop test via a hand-rolled implementation).
@@ -810,7 +810,7 @@ class EventBusTest {
         assertEquals(30.0, result)
     }
 
-    // ── 17. @Subscribe annotation ─────────────────────────────────────────────
+    // 17. @Subscribe annotation
 
     @Test
     fun `@Subscribe fires on matching event`() {
@@ -884,7 +884,7 @@ class EventBusTest {
         }
     }
 
-    // ── 18. subscribeAll / wildcard ───────────────────────────────────────────
+    // 18. subscribeAll / wildcard
 
     @Test
     fun `subscribeAll fires for every event type`() {
@@ -1005,7 +1005,7 @@ class EventBusTest {
         assertEquals(1, count)
     }
 
-    // ── 19. TypedEventBus ─────────────────────────────────────────────────────
+    // 19. TypedEventBus
 
     sealed interface DomainEvent : Event
     class DomainA : DomainEvent

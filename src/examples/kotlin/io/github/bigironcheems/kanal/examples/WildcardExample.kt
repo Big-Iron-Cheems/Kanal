@@ -2,7 +2,7 @@ package io.github.bigironcheems.kanal.examples
 
 import io.github.bigironcheems.kanal.*
 
-// ── Wildcard listeners ────────────────────────────────────────────────────────
+// Wildcard listeners
 //
 // subscribeAll fires for every event posted to the bus, interleaved with typed
 // handlers by priority. A wildcard at Priority.HIGHEST runs before all typed
@@ -29,7 +29,7 @@ fun wildcardUsage() {
     log.cancel()
 }
 
-// ── isListeningAll ────────────────────────────────────────────────────────────
+// isListeningAll
 
 fun wildcardQuery() {
     val bus = EventBus()

@@ -32,12 +32,12 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 open class ColdDispatchBenchmark {
 
-    // ── Event hierarchy ───────────────────────────────────────────────────────
+    // Event hierarchy
 
     open class BaseEvent : Event
     class ConcreteEvent : BaseEvent()
 
-    // ── State rebuilt per iteration ───────────────────────────────────────────
+    // State rebuilt per iteration
 
     private lateinit var busExact: EventBus
     private lateinit var busSuper: EventBus
@@ -77,7 +77,7 @@ open class ColdDispatchBenchmark {
         busSuper = EventBus().also { it.subscribe(SuperSub()) }
     }
 
-    // ── Subscribers ──────────────────────────────────────────────────────────
+    // Subscribers
 
     class ExactSub {
         @Subscribe

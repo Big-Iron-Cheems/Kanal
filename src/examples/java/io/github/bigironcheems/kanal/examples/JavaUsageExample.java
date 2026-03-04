@@ -10,7 +10,7 @@ import io.github.bigironcheems.kanal.*;
  */
 public class JavaUsageExample {
 
-    // ── Event definitions ─────────────────────────────────────────────────────
+    // Event definitions
 
     static class PlayerJumpEvent implements Event {
         final String player;
@@ -57,7 +57,7 @@ public class JavaUsageExample {
         }
     }
 
-    // ── Annotation-based subscriber ───────────────────────────────────────────
+    // Annotation-based subscriber
 
     static class GameListener {
         @Subscribe(priority = Priority.HIGH)
@@ -71,7 +71,7 @@ public class JavaUsageExample {
         }
     }
 
-    // ── Static subscriber ─────────────────────────────────────────────────────
+    // Static subscriber
 
     static class ServerListener {
         @Subscribe
@@ -80,7 +80,7 @@ public class JavaUsageExample {
         }
     }
 
-    // ── Basic usage ───────────────────────────────────────────────────────────
+    // Basic usage
 
     static void basicUsage() {
         EventBus bus = EventBus.create();
@@ -101,7 +101,7 @@ public class JavaUsageExample {
         sub.cancel();
     }
 
-    // ── Subscription as AutoCloseable (try-with-resources) ────────────────────
+    // Subscription as AutoCloseable (try-with-resources)
 
     static void tryWithResources() {
         EventBus bus = EventBus.create();
@@ -113,7 +113,7 @@ public class JavaUsageExample {
         bus.post(new PlayerJumpEvent("Alex")); // does not fire; sub was closed
     }
 
-    // ── Static subscriber ─────────────────────────────────────────────────────
+    // Static subscriber
 
     static void staticSubscriber() {
         EventBus bus = EventBus.create();
@@ -123,7 +123,7 @@ public class JavaUsageExample {
         bus.post(new PlayerJumpEvent("Alex")); // no output
     }
 
-    // ── Wildcard listener ─────────────────────────────────────────────────────
+    // Wildcard listener
 
     static void wildcardListener() {
         EventBus bus = EventBus.create();
@@ -132,7 +132,7 @@ public class JavaUsageExample {
         bus.post(new BlockBreakEvent("stone"));
     }
 
-    // ── Cancellable ───────────────────────────────────────────────────────────
+    // Cancellable
 
     static void cancellable() {
         EventBus bus = EventBus.create();
@@ -142,7 +142,7 @@ public class JavaUsageExample {
         IO.println("Cancelled: " + result.isCancelled()); // true
     }
 
-    // ── Modifiable ────────────────────────────────────────────────────────────
+    // Modifiable
 
     static void modifiable() {
         EventBus bus = EventBus.create();
@@ -152,7 +152,7 @@ public class JavaUsageExample {
         IO.println("Damage after halving: " + result.getValue()); // 5.0
     }
 
-    // ── Custom error handler ──────────────────────────────────────────────────
+    // Custom error handler
 
     static void customErrorHandler() {
         EventBus bus = EventBus.createWithHandler(
@@ -164,7 +164,7 @@ public class JavaUsageExample {
         bus.post(new PlayerJumpEvent("Steve"));
     }
 
-    // ── Typed bus ─────────────────────────────────────────────────────────────
+    // Typed bus
 
     interface NetworkEvent extends Event {
     }
@@ -203,7 +203,7 @@ public class JavaUsageExample {
         networkBus.post(new PacketReceived(new byte[0]));
     }
 
-    // ── main ──────────────────────────────────────────────────────────────────
+    // main
 
     public static void main(String[] args) {
         IO.println("=== Basic usage ===");

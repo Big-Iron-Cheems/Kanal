@@ -30,6 +30,11 @@ A **Kotlin-first, Java-compatible** event-handler library targeting **JDK 25**.
   `TypedEventBusFactory.typed(bus, MyEvent.class)`.
 * **Thread-safe**; `CopyOnWriteArrayList` per event type; safe for concurrent read /
   occasional write patterns.
+* **Async dispatch**; opt-in per-handler async execution via `@Subscribe(async = true)` or
+  `bus.subscribe<MyEvent>(async = true) { }`. An `Executor` (e.g. virtual threads) is supplied
+  at bus construction time; handlers without an executor fall back to synchronous execution
+  without throwing. `bus.postAsync(event)` returns a `CompletableFuture<T>` completing after
+  all handlers finish; priority ordering and mutation visibility are preserved.
 
 ## Quick start
 
@@ -79,6 +84,64 @@ bus.subscribeAll(Priority.NORMAL, e -> System.out.println(e));
 // Typed bus
 TypedEventBus<NetworkEvent> networkBus = TypedEventBusFactory.typed(bus, NetworkEvent.class);
 networkBus.post(new PacketReceived(bytes));
+```
+
+## Async dispatch
+
+Supply an `Executor` at construction time to enable async handler dispatch.
+Virtual threads (JDK 21+) are the recommended choice:
+
+```kotlin
+val bus = EventBus(Executors.newVirtualThreadPerTaskExecutor())
+```
+
+Mark individual handlers async with the annotation flag or the lambda parameter:
+
+```kotlin
+// Annotation style
+class PacketHandler {
+    @Subscribe(async = true)
+    fun onPacket(e: PacketReceived) { /* runs on virtual thread */ }
+}
+
+// Lambda style
+val sub = bus.subscribe<PacketReceived>(async = true) { e -> handle(e) }
+```
+
+Use `postAsync` to get a `CompletableFuture` that completes when all handlers finish:
+
+```kotlin
+val future: CompletableFuture<PacketReceived> = bus.postAsync(PacketReceived(bytes))
+future.thenAccept { e -> println("all handlers done, event: $e") }
+
+// Or await it blocking
+val event = bus.postAsync(PacketReceived(bytes)).join()
+```
+
+**Semantic guarantees:**
+- Priority ordering is preserved; handlers execute in priority order regardless of async flag.
+- Mutation visibility is guaranteed; a lower-priority sync handler always observes mutations
+  from higher-priority async handlers (the chain drains before each sync step).
+- Cancellation works automatically and is thread-safe. No `@Volatile` or `AtomicBoolean`
+  required on your `isCancelled` field. The bus wraps cancellation in an `AtomicBoolean` for
+  the duration of the async chain and writes the result back to the event once all handlers
+  complete. A plain `var isCancelled = false` is sufficient.
+- `postAsync` never completes exceptionally due to handler errors; exceptions route to the
+  bus's `exceptionHandler`. Only infrastructure failure (executor rejection) is exceptional.
+- No executor configured: `async = true` handlers fall back to synchronous execution silently.
+
+**Java:**
+
+```java
+ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+EventBus bus = EventBus.create(executor);
+
+// Subscription with async flag
+bus.subscribe(PacketReceived.class, Priority.NORMAL, true, e -> handle(e));
+
+// postAsync
+CompletableFuture<PacketReceived> future = bus.postAsync(new PacketReceived(bytes));
+future.thenAccept(e -> System.out.println("done"));
 ```
 
 ## Performance
@@ -132,6 +195,7 @@ Available benchmark classes in `src/jmh/kotlin/.../bench/`:
 | `ColdDispatchBenchmark`         | First-post cost before `dispatchCache` is populated                |
 | `TypedEventBusBenchmark`        | `TypedEventBus` adapter overhead vs. plain `EventBus`              |
 | `WildcardPostBenchmark`         | Wildcard-only, typed-only, and mixed dispatch cost                 |
+| `AsyncDispatchBenchmark`        | `postAsync` latency vs sync `post`; all-async, all-sync, mixed     |
 
 ## Publishing
 

@@ -4,6 +4,7 @@ import io.github.bigironcheems.kanal.Event
 import io.github.bigironcheems.kanal.EventBus
 import io.github.bigironcheems.kanal.Subscription
 import io.github.bigironcheems.kanal.TypedEventBus
+import java.util.concurrent.CompletableFuture
 
 /**
  * Internal [TypedEventBus] implementation backed by a plain [EventBus].
@@ -18,6 +19,8 @@ internal class TypedEventBusAdapter<E : Event>(
 
     override fun <T : E> post(event: T): T = delegate.post(event)
 
+    override fun <T : E> postAsync(event: T): CompletableFuture<T> = delegate.postAsync(event)
+
     override fun subscribe(subscriber: Any) = delegate.subscribe(subscriber)
 
     override fun unsubscribe(subscriber: Any) = delegate.unsubscribe(subscriber)
@@ -28,8 +31,9 @@ internal class TypedEventBusAdapter<E : Event>(
     override fun <T : E> subscribe(
         eventClass: Class<T>,
         priority: Int,
+        async: Boolean,
         handler: (T) -> Unit,
-    ): Subscription = delegate.subscribe(eventClass, priority) { e -> handler(e as T) }
+    ): Subscription = delegate.subscribe(eventClass, priority, async) { e -> handler(e as T) }
 
     override fun subscribeAll(priority: Int, handler: (Event) -> Unit): Subscription =
         delegate.subscribeAll(priority, handler)

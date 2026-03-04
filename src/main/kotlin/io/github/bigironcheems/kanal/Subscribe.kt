@@ -21,7 +21,10 @@ package io.github.bigironcheems.kanal
  * ```
  *
  * @param priority Dispatch priority. Use [Priority] constants or any integer. Defaults to [Priority.NORMAL].
+ * @param async    Whether this handler should be dispatched asynchronously when an [java.util.concurrent.Executor]
+ *                 is configured on the bus. Defaults to `false`. If `true` but no executor is configured,
+ *                 the handler executes synchronously (no exception is thrown).
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-public annotation class Subscribe(val priority: Int = Priority.NORMAL)
+public annotation class Subscribe(val priority: Int = Priority.NORMAL, val async: Boolean = false)

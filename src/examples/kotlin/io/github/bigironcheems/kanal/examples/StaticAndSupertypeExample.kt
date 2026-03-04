@@ -2,7 +2,7 @@ package io.github.bigironcheems.kanal.examples
 
 import io.github.bigironcheems.kanal.*
 
-// ── Static subscribers ────────────────────────────────────────────────────────
+// Static subscribers
 //
 // Kotlin objects and Java static methods can be registered as subscribers.
 // Use subscribeStatic / unsubscribeStatic with the class token.
@@ -29,7 +29,7 @@ fun staticSubscriberUsage() {
     println("(no output above; static handler removed)")
 }
 
-// ── Supertype dispatch ────────────────────────────────────────────────────────
+// Supertype dispatch
 //
 // Posting a SubEvent also reaches handlers registered for any superclass or
 // interface in its hierarchy, in priority order across all layers.

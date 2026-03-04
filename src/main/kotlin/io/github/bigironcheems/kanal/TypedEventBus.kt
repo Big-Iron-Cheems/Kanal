@@ -3,6 +3,7 @@
 package io.github.bigironcheems.kanal
 
 import io.github.bigironcheems.kanal.internal.TypedEventBusAdapter
+import java.util.concurrent.CompletableFuture
 
 /**
  * A type-safe view over an [EventBus] that restricts [post] and [subscribe] to a specific
@@ -61,6 +62,14 @@ public interface TypedEventBus<E : Event> {
     public fun <T : E> post(event: T): T
 
     /**
+     * Dispatches [event] asynchronously, returning a [CompletableFuture] that completes when
+     * all handlers (sync and async) have finished. Delegates to the underlying [EventBus.postAsync].
+     *
+     * See [EventBus.postAsync] for full semantics and error-handling contract.
+     */
+    public fun <T : E> postAsync(event: T): CompletableFuture<T>
+
+    /**
      * Registers all instance methods on [subscriber] annotated with [@Subscribe][Subscribe].
      *
      * Methods handling event types outside of the [E] hierarchy are silently ignored at
@@ -98,17 +107,43 @@ public interface TypedEventBus<E : Event> {
     /**
      * Registers a lambda handler for event type [T] and returns a [Subscription] token.
      * Hidden from Java; Java callers use the [java.util.function.Consumer] overload.
+     *
+     * @param async If `true`, the handler is dispatched on the bus's configured executor.
+     */
+    @JvmSynthetic
+    public fun <T : E> subscribe(
+        eventClass: Class<T>,
+        priority: Int,
+        async: Boolean,
+        handler: (T) -> Unit,
+    ): Subscription
+
+    /**
+     * Overload without `async` parameter; defaults to synchronous execution.
+     * Preserves binary compatibility with existing callers.
      */
     @JvmSynthetic
     public fun <T : E> subscribe(
         eventClass: Class<T>,
         priority: Int,
         handler: (T) -> Unit,
-    ): Subscription
+    ): Subscription = subscribe(eventClass, priority, false, handler)
+
+    /**
+     * Registers a [java.util.function.Consumer] handler for event type [T] with async support.
+     *
+     * @param async If `true`, the handler is dispatched on the bus's configured executor.
+     */
+    public fun <T : E> subscribe(
+        eventClass: Class<T>,
+        priority: Int,
+        async: Boolean,
+        handler: java.util.function.Consumer<T>,
+    ): Subscription = subscribe(eventClass, priority, async) { e -> handler.accept(e) }
 
     /**
      * Registers a [java.util.function.Consumer] handler for event type [T] and returns a
-     * [Subscription] token for removal.
+     * [Subscription] token for removal. Uses synchronous dispatch.
      *
      * Java callers use plain void lambdas:
      * ```java
@@ -120,7 +155,7 @@ public interface TypedEventBus<E : Event> {
         eventClass: Class<T>,
         priority: Int,
         handler: java.util.function.Consumer<T>,
-    ): Subscription = subscribe(eventClass, priority) { e -> handler.accept(e) }
+    ): Subscription = subscribe(eventClass, priority, false) { e -> handler.accept(e) }
 
     /**
      * Registers a wildcard handler that fires for every event posted to the underlying bus,
@@ -152,7 +187,7 @@ public interface TypedEventBus<E : Event> {
     public fun isListening(eventClass: Class<out Event>): Boolean
 }
 
-// ── Factory ───────────────────────────────────────────────────────────────────
+//  Factory
 
 /**
  * Java interop overload of [typed]. The [rootClass] token is unused at runtime
@@ -180,7 +215,7 @@ public fun <E : Event> EventBus.typed(rootClass: Class<E>): TypedEventBus<E> =
 public inline fun <reified E : Event> EventBus.typed(): TypedEventBus<E> =
     typed(E::class.java)
 
-// ── Kotlin extension helpers ──────────────────────────────────────────────────
+//  Kotlin extension helpers
 
 /**
  * Registers a lambda handler for event type [T] on this [TypedEventBus].
@@ -188,13 +223,17 @@ public inline fun <reified E : Event> EventBus.typed(): TypedEventBus<E> =
  * ```kotlin
  * val sub  = networkBus.subscribe<PacketReceived> { e -> handle(e) }
  * val sub2 = networkBus.subscribe<ConnectionLost>(Priority.HIGH) { reconnect() }
+ * val sub3 = networkBus.subscribe<PacketReceived>(async = true) { e -> handle(e) }
  * sub.cancel()
  * ```
+ *
+ * @param async If `true`, the handler is dispatched on the bus's configured executor.
  */
 public inline fun <reified T : Event> TypedEventBus<in T>.subscribe(
     priority: Int = Priority.NORMAL,
+    async: Boolean = false,
     noinline handler: (T) -> Unit,
-): Subscription = subscribe(T::class.java, priority, handler)
+): Subscription = subscribe(T::class.java, priority, async, handler)
 
 /**
  * Registers a wildcard handler on this [TypedEventBus] with [Priority.NORMAL] default.
