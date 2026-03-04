@@ -19,8 +19,12 @@ import java.util.concurrent.TimeUnit
  * - `MIXED`     - async bus has [handlerCount] HIGH-async + [handlerCount] LOW-sync handlers;
  *                 sync bus has the equivalent total count of sync handlers.
  *
- * [syncPost] always measures a fully synchronous bus with an equivalent handler count so the
- * numbers are comparable across scenarios.
+ * [syncPost] always measures a fully synchronous bus with no executor.
+ * [syncPostWithExecutorConfigured] always measures a bus that has an executor configured but
+ * only sync handlers, regardless of scenario; this isolates any overhead from the executor
+ * presence itself on a purely sync dispatch list.
+ * [asyncFallbackToSync] measures `postAsync` on a no-executor bus, confirming the fallback
+ * path has zero overhead compared to [syncPost].
  */
 @Suppress("unused")
 @State(Scope.Benchmark)
@@ -43,12 +47,19 @@ open class AsyncDispatchBenchmark {
     private lateinit var syncBus: EventBus
     private lateinit var asyncBus: EventBus
 
+    /**
+     * A bus with the executor configured but only sync handlers, regardless of [scenario].
+     * Used by [syncPostWithExecutorConfigured] to isolate executor-presence overhead.
+     */
+    private lateinit var syncOnlyBus: EventBus
+
     @Setup(Level.Trial)
     fun setup() {
         val executor = Executors.newVirtualThreadPerTaskExecutor()
 
         syncBus = EventBus()           // no executor, pure sync baseline
         asyncBus = EventBus(executor)
+        syncOnlyBus = EventBus(executor)
 
         // syncBus always gets the equivalent total handler count for a fair baseline.
         val totalSyncCount = when (scenario) {
@@ -57,6 +68,8 @@ open class AsyncDispatchBenchmark {
         }
         repeat(totalSyncCount) {
             syncBus.subscribe(BenchEvent::class.java, Priority.NORMAL) { e: BenchEvent -> e.count++ }
+            // syncOnlyBus always gets sync handlers regardless of scenario.
+            syncOnlyBus.subscribe(BenchEvent::class.java, Priority.NORMAL, false) { e: BenchEvent -> e.count++ }
         }
 
         when (scenario) {
@@ -74,6 +87,7 @@ open class AsyncDispatchBenchmark {
 
         // Warm the dispatch cache
         syncBus.post(BenchEvent())
+        syncOnlyBus.post(BenchEvent())
         asyncBus.postAsync(BenchEvent()).join()
     }
 
@@ -88,6 +102,10 @@ open class AsyncDispatchBenchmark {
     /**
      * `postAsync` on a bus backed by a virtual-thread executor.
      * Blocks on `.join()` to measure total end-to-end dispatch latency.
+     *
+     * For `ALL_SYNC`, the dispatch list has no async handlers so `postAsync` short-circuits
+     * to the sync loop and returns an already-completed future; the result should match
+     * [syncPost] and [asyncFallbackToSync].
      */
     @Benchmark
     fun asyncPost(bh: Blackhole): BenchEvent {
@@ -97,14 +115,31 @@ open class AsyncDispatchBenchmark {
     }
 
     /**
-     * Sync `post` on a bus that has an executor but all-sync handlers.
-     * Should be close to [syncPost], confirming no overhead is paid when no
-     * async handlers exist in the dispatch list.
+     * Sync `post` on a bus that has an executor configured but only sync handlers.
+     * Should be close to [syncPost] across all scenarios, confirming no overhead is paid
+     * when no async handlers exist in the dispatch list even when an executor is present.
      */
     @Benchmark
     fun syncPostWithExecutorConfigured(bh: Blackhole): BenchEvent {
         val e = BenchEvent()
-        bh.consume(asyncBus.post(e))
+        bh.consume(syncOnlyBus.post(e))
+        return e
+    }
+
+    /**
+     * `postAsync` on a bus with no executor configured.
+     * Handlers run synchronously via the short-circuit sync loop; the returned future is already
+     * completed before `.join()` is called. The same short-circuit also fires when an executor
+     * is configured but the dispatch list has no async handlers (covered by [asyncPost] ALL_SYNC).
+     * Should be close to [syncPost] latency, confirming the fallback path has negligible overhead.
+     *
+     * Note: the `.join()` call on an already-completed future is included in this measurement.
+     * Any delta vs [syncPost] reflects that cost, not async dispatch overhead.
+     */
+    @Benchmark
+    fun asyncFallbackToSync(bh: Blackhole): BenchEvent {
+        val e = BenchEvent()
+        bh.consume(syncBus.postAsync(e).join())
         return e
     }
 

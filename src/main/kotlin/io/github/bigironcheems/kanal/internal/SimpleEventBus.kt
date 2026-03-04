@@ -271,14 +271,16 @@ internal class SimpleEventBus(
         }
 
         val executor = asyncExecutor
-        return if (executor != null) {
+        return if (executor != null && list.any { it.async }) {
             val guard = (event as? Cancellable)?.let { AsyncCancellableGuard(it) }
             buildDispatchChain(event, list, executor, guard).thenApply {
                 guard?.flush()
                 event
             }
         } else {
-            // No executor configured: run synchronously then return completed future.
+            // No executor configured, or executor is configured but no handler in this dispatch
+            // list has async=true: run synchronously and return an already-completed future.
+            // No CompletableFuture chain is built; no allocations beyond the completed future wrapper.
             val cancellable = event as? Cancellable
             for (entry in list) {
                 if (cancellable?.isCancelled == true) break

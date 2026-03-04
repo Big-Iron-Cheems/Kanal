@@ -188,6 +188,14 @@ public interface EventBus {
      *
      * If no executor is configured, this method is entirely synchronous with no extra allocation.
      *
+     * ### Infrastructure failures
+     *
+     * If the configured executor rejects the submitted work (e.g. it has been shut down),
+     * [java.util.concurrent.CompletionException] propagates out of this method. This is an
+     * infrastructure failure - not a handler error - and is intentionally not routed to
+     * `exceptionHandler`. Handler exceptions are still swallowed into `exceptionHandler` and
+     * never propagate here.
+     *
      * @return the same [event] instance, for convenient one-liner posting.
      */
     public fun <T : Event> post(event: T): T
