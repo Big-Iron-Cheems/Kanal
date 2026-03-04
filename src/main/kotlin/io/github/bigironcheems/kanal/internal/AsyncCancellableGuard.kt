@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * happens-before edge, and the [AtomicBoolean] is updated accordingly.
  *
  * Subsequent cancellation checks in the same step read [isCancelled] from the [AtomicBoolean],
- * which is thread-safe for the concurrent reads that `thenApplyAsync` may cause.
+ * which is thread-safe for the concurrent reads that `thenRunAsync` may cause.
  *
  * After the entire chain completes, [flush] does one final read of `delegate.isCancelled`
  * (safe under `join()`'s happens-before) to capture any write from the very last step, then

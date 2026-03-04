@@ -3,8 +3,8 @@ package io.github.bigironcheems.kanal
 /**
  * Optional interface for events that support cancellation.
  *
- * When a [Cancellable] event is posted, the bus stops dispatching as soon as
- * [isCancelled] is `true`; remaining handlers are skipped.
+ * When a [Cancellable] event is posted, dispatch stops as soon as any handler sets
+ * [isCancelled] to `true`; remaining handlers are skipped.
  *
  * ```kotlin
  * class BlockBreakEvent : Event, Cancellable {
@@ -21,19 +21,14 @@ package io.github.bigironcheems.kanal
  * }
  * ```
  *
- * ### Async dispatch
- *
- * Cancellation is automatically thread-safe when the event is posted via [EventBus.postAsync]
- * or to a bus with async handlers. The bus wraps the cancellation check in an
- * [java.util.concurrent.atomic.AtomicBoolean] for the duration of the async dispatch chain,
- * making cross-thread cancellation visibility transparent. The final cancelled state is written
- * back to this field once after all handlers have completed.
+ * Cancellation is automatically thread-safe when the event is dispatched via [EventBus.postAsync]
+ * or to a bus with async handlers. A plain `var isCancelled = false` field is sufficient.
  */
 public interface Cancellable {
-    /** Whether this event has been cancelled. */
+    /** Whether this event has been cancelled. Set to `true` to stop further dispatch. */
     public var isCancelled: Boolean
 
-    /** Convenience method to cancel the event. Equivalent to `isCancelled = true`. */
+    /** Sets [isCancelled] to `true`. Equivalent to `isCancelled = true`. */
     public fun cancel() {
         isCancelled = true
     }

@@ -3,16 +3,12 @@ package io.github.bigironcheems.kanal
 /**
  * Marks a method as an event handler to be discovered by an [EventBus].
  *
- * A valid handler method must:
- * - Accept exactly one parameter whose type implements [Event].
- * - Return `Unit` / `void`.
+ * A valid handler must accept exactly one parameter whose type implements [Event],
+ * return `Unit` / `void`, and be an instance method (for [EventBus.subscribe]) or
+ * a static / `@JvmStatic` method (for [EventBus.subscribeStatic]).
  *
- * Handlers may be instance methods (registered via [EventBus.subscribe]) or
- * static / `@JvmStatic` methods (registered via [EventBus.subscribeStatic]).
- *
- * **Override behaviour:** if a subclass overrides a handler method without
- * re-annotating it, the override shadows the base class handler and will not
- * be dispatched. Always re-annotate overrides:
+ * If a subclass overrides a handler without re-annotating it, the override is not
+ * dispatched. Always re-annotate overrides:
  * ```kotlin
  * class Sub : Base() {
  *     @Subscribe
@@ -20,10 +16,11 @@ package io.github.bigironcheems.kanal
  * }
  * ```
  *
- * @param priority Dispatch priority. Use [Priority] constants or any integer. Defaults to [Priority.NORMAL].
- * @param async    Whether this handler should be dispatched asynchronously when an [java.util.concurrent.Executor]
- *                 is configured on the bus. Defaults to `false`. If `true` but no executor is configured,
- *                 the handler executes synchronously (no exception is thrown).
+ * @param priority Dispatch priority; higher values fire first. Use [Priority] constants or
+ *                 any integer. Defaults to [Priority.NORMAL].
+ * @param async    If `true`, dispatches this handler on the bus's configured executor.
+ *                 Falls back to synchronous execution if no executor is configured.
+ *                 Defaults to `false`.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

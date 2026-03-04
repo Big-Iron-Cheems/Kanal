@@ -329,6 +329,7 @@ internal class SimpleEventBus(
             supertypes(concreteClass).any { listeners[it]?.isNotEmpty() == true }
                 || wildcardListeners.isNotEmpty() ->
                 dispatchCache.getOrPut(concreteClass) { buildDispatchList(concreteClass) }
+
             else -> null
         }
     }
@@ -367,7 +368,9 @@ internal class SimpleEventBus(
             chain = when {
                 entry.async -> chainAsync(chain, entry, event, guard, executor).also { hasAsyncInChain = true }
                 hasAsyncInChain -> chainSync(chain, entry, event, guard)
-                else -> { invokeEntry(entry, event); chain }
+                else -> {
+                    invokeEntry(entry, event); chain
+                }
             }
         }
         return chain
