@@ -27,14 +27,14 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 open class SupertypeDispatchBenchmark {
 
-    // ── Event hierarchy ───────────────────────────────────────────────────────
+    // Event hierarchy
 
     interface BaseInterface : Event
     open class BaseClass : Event
     class ConcreteFromClass : BaseClass()
     class ConcreteFromInterface : Event, BaseInterface
 
-    // ── Buses ────────────────────────────────────────────────────────────────
+    // Buses
 
     private lateinit var busExact: EventBus
     private lateinit var busSuper: EventBus
@@ -80,7 +80,7 @@ open class SupertypeDispatchBenchmark {
         bh.consume(ifaceEvent)
     }
 
-    // ── Subscribers ──────────────────────────────────────────────────────────
+    // Subscribers
 
     class ExactSub {
         @Subscribe

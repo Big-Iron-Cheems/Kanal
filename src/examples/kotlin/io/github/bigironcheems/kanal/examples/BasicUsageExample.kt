@@ -2,7 +2,7 @@ package io.github.bigironcheems.kanal.examples
 
 import io.github.bigironcheems.kanal.*
 
-// ── Annotation-based subscriber ───────────────────────────────────────────────
+// Annotation-based subscriber
 
 class GameListener {
     @Subscribe(priority = Priority.HIGH)
@@ -16,7 +16,7 @@ class GameListener {
     }
 }
 
-// ── Basic usage ───────────────────────────────────────────────────────────────
+// Basic usage
 
 fun basicUsage() {
     val bus = EventBus()
@@ -34,7 +34,7 @@ fun basicUsage() {
     sub2.cancel()
 }
 
-// ── Cancellable ───────────────────────────────────────────────────────────────
+// Cancellable
 
 fun cancellableUsage() {
     val bus = EventBus()
@@ -44,7 +44,7 @@ fun cancellableUsage() {
     println("BlockBreakEvent cancelled: ${result.isCancelled}")  // true
 }
 
-// ── Modifiable ────────────────────────────────────────────────────────────────
+// Modifiable
 
 fun modifiableUsage() {
     val bus = EventBus()
@@ -54,7 +54,7 @@ fun modifiableUsage() {
     println("Damage after halving: $damage")  // 5.0
 }
 
-// ── Error handling ────────────────────────────────────────────────────────────
+// Error handling
 
 fun customErrorHandler() {
     val bus = EventBus { throwable: Throwable ->

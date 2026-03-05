@@ -4,8 +4,15 @@ package io.github.bigironcheems.kanal
  * Optional interface for events that carry a mutable result value.
  *
  * Any handler in the dispatch chain can read or replace [value]. Handlers fire in
- * descending priority order, so a high-priority handler can set an initial result
- * that lower-priority handlers may further refine.
+ * descending priority order, so a high-priority handler sets an initial result that
+ * lower-priority handlers may refine.
+ *
+ * ```kotlin
+ * class DamageEvent(override var value: Double) : Event, Modifiable<Double>
+ *
+ * bus.subscribe<DamageEvent> { e -> e.value *= 0.5 }
+ * val result = bus.post(DamageEvent(10.0)).value  // 5.0
+ * ```
  *
  * Composable with [Cancellable]:
  * ```kotlin
@@ -15,15 +22,8 @@ package io.github.bigironcheems.kanal
  * ) : Event, Modifiable<Int>, Cancellable
  * ```
  *
- * ```kotlin
- * class DamageEvent(override var value: Double) : Event, Modifiable<Double>
- *
- * bus.subscribe<DamageEvent> { e -> e.value *= 0.5 }
- * val result = bus.post(DamageEvent(10.0)).value  // 5.0
- * ```
- *
- * Java: `var value: T` compiles to `getValue()` / `setValue(T)`. Primitives are
- * boxed because of the generic parameter; use wrapper types (`Double`, `Integer`, etc.):
+ * Java: `var value: T` compiles to `getValue()` / `setValue(T)`. Primitives are boxed due to
+ * the generic parameter; use wrapper types (`Double`, `Integer`, etc.):
  * ```java
  * public class DamageEvent implements Event, Modifiable<Double> {
  *     private double value;
@@ -31,7 +31,6 @@ package io.github.bigironcheems.kanal
  *     @Override public Double getValue() { return value; }
  *     @Override public void setValue(Double v) { this.value = v; }
  * }
- *
  * bus.subscribe(DamageEvent.class, Priority.NORMAL, e -> e.setValue(e.getValue() * 0.5));
  * ```
  *
@@ -44,6 +43,6 @@ package io.github.bigironcheems.kanal
  * @param T The type of the mutable value carried by this event.
  */
 public interface Modifiable<T> {
-    /** The current value. Handlers may replace this at any point during dispatch. */
+    /** The current value. Any handler may read or replace this during dispatch. */
     public var value: T
 }

@@ -2,7 +2,7 @@ package io.github.bigironcheems.kanal.examples
 
 import io.github.bigironcheems.kanal.*
 
-// ── Typed bus ─────────────────────────────────────────────────────────────────
+// Typed bus
 //
 // TypedEventBus<E> restricts post and subscribe to subtypes of E at compile
 // time. Works best with sealed hierarchies; sealed interface prevents external
@@ -40,7 +40,7 @@ fun typedBusUsage() {
     // networkBus.post(ButtonClickEvent("submit"))  // compile error; ButtonClickEvent is not a NetworkEvent
 }
 
-// ── Typed bus; delegate access ───────────────────────────────────────────────
+// Typed bus; delegate access
 
 fun typedBusDelegate() {
     val underlying = EventBus()
@@ -53,7 +53,7 @@ fun typedBusDelegate() {
     println(networkBus.isListening<PacketReceived>()) // false
 }
 
-// ── Typed bus; unsubscribe annotation-based handler ─────────────────────────
+// Typed bus; unsubscribe annotation-based handler
 
 class NetworkHandler {
     @Subscribe

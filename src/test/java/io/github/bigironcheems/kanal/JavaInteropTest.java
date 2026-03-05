@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class JavaInteropTest {
 
-    // ── Event fixtures ────────────────────────────────────────────────────────
+    // Event fixtures
 
     static class SimpleEvent implements Event {
     }
@@ -59,7 +59,7 @@ class JavaInteropTest {
         }
     }
 
-    // ── Annotation-based Java subscriber ─────────────────────────────────────
+    // Annotation-based Java subscriber
 
     static class JavaListener {
         final List<String> received = new ArrayList<>();
@@ -85,7 +85,7 @@ class JavaInteropTest {
         }
     }
 
-    // ── Tests ─────────────────────────────────────────────────────────────────
+    // Tests
 
     @Test
     void eventBusCreate_returnsWorkingBus() {
