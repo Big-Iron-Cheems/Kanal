@@ -215,7 +215,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.big-iron-cheems:kanal:0.1.0")
+    implementation("io.github.big-iron-cheems:kanal:0.2.0")
 }
 ```
 
@@ -237,7 +237,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.big-iron-cheems:kanal:0.1.0")
+    implementation("io.github.big-iron-cheems:kanal:0.2.0")
 }
 ```
 
@@ -254,7 +254,7 @@ Apache 2.0, see [LICENSE](LICENSE).
 [badge-ci]: https://github.com/Big-Iron-Cheems/Kanal/actions/workflows/ci.yml/badge.svg
 [badge-kotlin]: https://img.shields.io/badge/kotlin-2.1-7F52FF?logo=kotlin&logoColor=white
 [badge-jvm]: https://img.shields.io/badge/JVM-25-orange?logo=openjdk&logoColor=white
-[badge-maven]: https://img.shields.io/badge/meteor--maven-0.1.0-blue?logo=apachemaven&logoColor=white
+[badge-maven]: https://img.shields.io/badge/meteor--maven-0.2.0-blue?logo=apachemaven&logoColor=white
 [badge-license]: https://img.shields.io/github/license/Big-Iron-Cheems/Kanal?logo=apache&logoColor=white
 
 [//]: # (Link definitions)
