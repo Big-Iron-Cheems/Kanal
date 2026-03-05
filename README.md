@@ -215,7 +215,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.big-iron-cheems:kanal:0.2.0")
+    implementation("io.github.big-iron-cheems:Kanal:0.2.0")
 }
 ```
 
@@ -227,7 +227,7 @@ Publish to your local Maven repository for testing as a dependency in another pr
 ./gradlew publishToMavenLocal
 ```
 
-The artifact is installed to `~/.m2/repository/io/github/big-iron-cheems/kanal/`.
+The artifact is installed to `~/.m2/repository/io/github/big-iron-cheems/Kanal/`.
 
 Add it as a dependency in a consumer project:
 
@@ -237,7 +237,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.big-iron-cheems:kanal:0.2.0")
+    implementation("io.github.big-iron-cheems:Kanal:0.2.0")
 }
 ```
 
@@ -261,5 +261,5 @@ Apache 2.0, see [LICENSE](LICENSE).
 [link-ci]: https://github.com/Big-Iron-Cheems/Kanal/actions/workflows/ci.yml
 [link-kotlin]: https://kotlinlang.org
 [link-jvm]: https://openjdk.org/projects/jdk/25/
-[link-maven]: https://maven.meteordev.org/#/releases/io/github/big-iron-cheems/kanal
+[link-maven]: https://maven.meteordev.org/#/releases/io/github/big-iron-cheems/Kanal
 [link-license]: https://github.com/Big-Iron-Cheems/Kanal/blob/main/LICENSE
