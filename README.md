@@ -241,11 +241,6 @@ dependencies {
 }
 ```
 
-### Maven Central / JitPack
-
-> **Not yet published.** Maven Central publishing is stubbed in `build.gradle.kts`
-> (the repository block is commented out) and will be wired up before the first public release.
-
 ## License
 
 Apache 2.0, see [LICENSE](LICENSE).
