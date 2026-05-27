@@ -1,9 +1,7 @@
-/*
 plugins {
     id("kanal.kotlin-library")
     id("kanal.publish")
     id("kanal.benchmark")
-    application
 }
 
 group = "io.github.big-iron-cheems"
@@ -30,10 +28,9 @@ tasks.named("check") {
 }
 
 mavenPublishing {
-    coordinates(group.toString(), name.toString(), version.toString())
+    coordinates(group.toString(), name, version.toString())
     pom {
         name.set("Kanal")
         description.set("A Kotlin-first, Java-compatible event-handler library.")
     }
 }
-*/

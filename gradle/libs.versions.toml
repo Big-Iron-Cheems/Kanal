@@ -5,6 +5,7 @@ jmh = "1.37"
 jmhPlugin = "0.7.3"
 dokka = "2.1.0"
 mavenPublish = "0.36.0"
+coroutines = "1.10.2"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -15,5 +16,15 @@ mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublis
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+
+# Necessary for Gradle plugins since they do not have access to the [plugins] section.
+plugin-kotlin-jvm = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+plugin-jmh = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmhPlugin" }
+plugin-dokka = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
+plugin-maven-publish = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "mavenPublish" }
