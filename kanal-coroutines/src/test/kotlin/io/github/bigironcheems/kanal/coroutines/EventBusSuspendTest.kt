@@ -5,7 +5,9 @@ import io.github.bigironcheems.kanal.EventBus
 import io.github.bigironcheems.kanal.subscribe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 class EventBusSuspendTest {
 

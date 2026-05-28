@@ -1,17 +1,7 @@
 package io.github.bigironcheems.kanal.coroutines
 
-import io.github.bigironcheems.kanal.Event
-import io.github.bigironcheems.kanal.EventBus
-import io.github.bigironcheems.kanal.Priority
-import io.github.bigironcheems.kanal.Subscription
-import io.github.bigironcheems.kanal.TypedEventBus
-import io.github.bigironcheems.kanal.subscribe
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import io.github.bigironcheems.kanal.*
+import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -70,6 +60,7 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
             SuspendHandlerBehaviour.Parallel -> {
                 scope.launch { handler(event) }
             }
+
             SuspendHandlerBehaviour.DiscardIfBusy -> {
                 val current = activeJob.get()
                 if (current?.isActive != true) {
@@ -77,6 +68,7 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
                     activeJob.set(job)
                 }
             }
+
             SuspendHandlerBehaviour.ReplaceLatest -> {
                 activeJob.getAndSet(null)?.cancel()
                 val job = scope.launch(start = CoroutineStart.DEFAULT) { handler(event) }
