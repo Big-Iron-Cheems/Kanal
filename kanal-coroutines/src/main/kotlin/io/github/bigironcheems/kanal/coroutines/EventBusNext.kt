@@ -1,11 +1,6 @@
 package io.github.bigironcheems.kanal.coroutines
 
-import io.github.bigironcheems.kanal.Event
-import io.github.bigironcheems.kanal.EventBus
-import io.github.bigironcheems.kanal.Priority
-import io.github.bigironcheems.kanal.Subscription
-import io.github.bigironcheems.kanal.TypedEventBus
-import io.github.bigironcheems.kanal.subscribe
+import io.github.bigironcheems.kanal.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -30,11 +25,9 @@ public suspend inline fun <reified T : Event> EventBus.nextEvent(
     priority: Int = Priority.NORMAL,
     crossinline predicate: (T) -> Boolean = { true }
 ): T = suspendCancellableCoroutine { cont ->
-    lateinit var sub: Subscription
-    sub = subscribe<T>(priority) { event ->
+    val sub = subscribe<T>(priority) { event ->
         if (!predicate(event)) return@subscribe
         if (!cont.isActive) return@subscribe
-        sub.cancel()
         cont.resume(event)
     }
     cont.invokeOnCancellation { sub.cancel() }
