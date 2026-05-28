@@ -23,7 +23,6 @@ val examples: SourceSet by sourceSets.creating {
 }
 
 tasks.named("check") {
-    dependsOn("checkLegacyAbi")
     dependsOn("compileExamplesKotlin", "compileExamplesJava")
 }
 

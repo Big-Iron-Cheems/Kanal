@@ -10,6 +10,16 @@ repositories {
 kotlin {
     jvmToolchain(25)
     explicitApi()
+
+    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+    abiValidation {
+        enabled.set(true)
+        filters {
+            excluded {
+                byNames.add("io.github.bigironcheems.kanal.internal.**")
+            }
+        }
+    }
 }
 
 java {
@@ -18,4 +28,8 @@ java {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+tasks.named("check") {
+    dependsOn("checkLegacyAbi")
 }
