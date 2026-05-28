@@ -3,6 +3,7 @@ package io.github.bigironcheems.kanal.coroutines
 import io.github.bigironcheems.kanal.Event
 import io.github.bigironcheems.kanal.EventBus
 import io.github.bigironcheems.kanal.Priority
+import io.github.bigironcheems.kanal.TypedEventBus
 import io.github.bigironcheems.kanal.subscribe
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -26,3 +27,20 @@ public inline fun <reified T : Event> EventBus.asFlow(priority: Int = Priority.N
     val sub = subscribe<T>(priority) { trySend(it).isSuccess }
     awaitClose { sub.cancel() }
 }
+
+/**
+ * Returns a [Flow] that emits every event of type [T] posted to this [TypedEventBus].
+ *
+ * Delegates to [EventBus.asFlow] on the underlying bus.
+ *
+ * ```kotlin
+ * val networkBus = EventBus().typed<NetworkEvent>()
+ * networkBus.asFlow<PacketReceived>()
+ *     .collect { e -> handle(e) }
+ * ```
+ *
+ * @param priority Dispatch priority; defaults to [Priority.NORMAL].
+ */
+public inline fun <reified T : Event> TypedEventBus<in T>.asFlow(
+    priority: Int = Priority.NORMAL
+): Flow<T> = delegate.asFlow<T>(priority)

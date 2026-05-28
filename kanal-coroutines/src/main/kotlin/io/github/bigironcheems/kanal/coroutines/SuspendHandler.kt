@@ -4,6 +4,7 @@ import io.github.bigironcheems.kanal.Event
 import io.github.bigironcheems.kanal.EventBus
 import io.github.bigironcheems.kanal.Priority
 import io.github.bigironcheems.kanal.Subscription
+import io.github.bigironcheems.kanal.TypedEventBus
 import io.github.bigironcheems.kanal.subscribe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -91,3 +92,30 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
         }
     }
 }
+
+/**
+ * Registers a suspend [handler] for event type [T] on this [TypedEventBus]
+ * and returns a [Subscription] token.
+ *
+ * Delegates to [EventBus.suspendHandler] on the underlying bus.
+ *
+ * ```kotlin
+ * val networkBus = EventBus().typed<NetworkEvent>()
+ * val sub = networkBus.suspendHandler<PacketReceived> { e ->
+ *     delay(100)
+ *     handle(e)
+ * }
+ * sub.cancel()
+ * ```
+ *
+ * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
+ * @param behaviour Controls concurrency when events arrive faster than handlers complete.
+ * @param scope     Coroutine scope for handler execution.
+ * @param handler   The suspend function invoked for each matching event.
+ */
+public inline fun <reified T : Event> TypedEventBus<in T>.suspendHandler(
+    priority: Int = Priority.NORMAL,
+    behaviour: SuspendHandlerBehaviour = SuspendHandlerBehaviour.Parallel,
+    scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+    crossinline handler: suspend (T) -> Unit
+): Subscription = delegate.suspendHandler<T>(priority, behaviour, scope, handler)
