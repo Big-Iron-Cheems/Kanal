@@ -27,12 +27,18 @@ import kotlin.time.Duration.Companion.seconds
  *
  * All benchmarks use [runBlocking] as the coroutine entry point. The measured cost
  * includes the [runBlocking] bridge, coroutine suspension, event dispatch, and resume.
+ *
+ * [yield] is used after [async] to ensure the coroutine has started and registered
+ * its subscription before the event is posted.
+ *
+ * Two forks are used to reduce variance from OS scheduler timing on the hit-path
+ * benchmarks, which showed large confidence intervals in single-fork runs.
  */
 @Suppress("unused")
 @State(Scope.Benchmark)
-@Warmup(iterations = 4, time = 2, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 4, time = 2, timeUnit = TimeUnit.SECONDS)
-@Fork(value = 1, warmups = 1)
+@Warmup(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 6, time = 2, timeUnit = TimeUnit.SECONDS)
+@Fork(value = 2, warmups = 1)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 open class NextEventBenchmark {
@@ -50,7 +56,7 @@ open class NextEventBenchmark {
     @Benchmark
     fun nextEventNoFilter(bh: Blackhole) = runBlocking {
         val deferred = async { bus.nextEvent<BenchEvent>() }
-        yield() // let the coroutine start and register its subscription
+        yield()
         bh.consume(bus.post(matchingEvent))
         bh.consume(deferred.await())
     }

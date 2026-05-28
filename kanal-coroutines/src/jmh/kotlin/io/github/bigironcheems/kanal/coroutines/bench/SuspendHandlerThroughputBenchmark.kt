@@ -6,11 +6,13 @@ import io.github.bigironcheems.kanal.Subscribe
 import io.github.bigironcheems.kanal.coroutines.SuspendHandlerBehaviour
 import io.github.bigironcheems.kanal.coroutines.suspendHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -22,6 +24,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * dispatch to suspend handlers. Note that the suspend handlers themselves run
  * asynchronously on the provided scope; what is measured here is the cost of
  * the dispatch call (registering the launch) not handler completion.
+ *
+ * A dedicated single-thread executor is used as the dispatcher to avoid
+ * cross-iteration interference from lingering coroutines on [Dispatchers.Default].
+ * This isolates the dispatch-call cost (the AtomicReference checks, coroutine
+ * launch scheduling) from thread-pool contention.
  *
  * - [parallelDispatch]: [SuspendHandlerBehaviour.Parallel] — launches a new
  *   coroutine for every event.
@@ -52,12 +59,14 @@ open class SuspendHandlerThroughputBenchmark {
     private lateinit var baselineBus: EventBus
     private lateinit var supervisorJob: Job
     private lateinit var scope: CoroutineScope
+    private lateinit var executor: ExecutorService
     private val event = BenchEvent()
 
     @Setup(Level.Trial)
     fun setup() {
+        executor = Executors.newSingleThreadExecutor()
         supervisorJob = SupervisorJob()
-        scope = CoroutineScope(Dispatchers.Default + supervisorJob)
+        scope = CoroutineScope(executor.asCoroutineDispatcher() + supervisorJob)
 
         parallelBus = EventBus()
         discardBus = EventBus()
@@ -93,6 +102,7 @@ open class SuspendHandlerThroughputBenchmark {
     @TearDown(Level.Trial)
     fun teardown() {
         supervisorJob.cancel()
+        executor.shutdown()
     }
 
     /**
