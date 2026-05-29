@@ -4,6 +4,7 @@ import io.github.bigironcheems.kanal.Event
 import io.github.bigironcheems.kanal.EventBus
 import io.github.bigironcheems.kanal.coroutines.nextEvent
 import io.github.bigironcheems.kanal.coroutines.nextEventOrNull
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -55,8 +56,12 @@ open class NextEventBenchmark {
     /** Plain `nextEvent` with no predicate — baseline for single-event await. */
     @Benchmark
     fun nextEventNoFilter(bh: Blackhole) = runBlocking {
-        val deferred = async { bus.nextEvent<BenchEvent>() }
-        yield()
+        val ready = CompletableDeferred<Unit>()
+        val deferred = async {
+            ready.complete(Unit)
+            bus.nextEvent<BenchEvent>()
+        }
+        ready.await()
         bh.consume(bus.post(matchingEvent))
         bh.consume(deferred.await())
     }
@@ -64,8 +69,12 @@ open class NextEventBenchmark {
     /** `nextEvent` with a predicate that matches on the first event. */
     @Benchmark
     fun nextEventWithPredicate(bh: Blackhole) = runBlocking {
-        val deferred = async { bus.nextEvent<BenchEvent> { it.value > 100 } }
-        yield()
+        val ready = CompletableDeferred<Unit>()
+        val deferred = async {
+            ready.complete(Unit)
+            bus.nextEvent<BenchEvent> { it.value > 100 }
+        }
+        ready.await()
         bh.consume(bus.post(matchingEvent))
         bh.consume(deferred.await())
     }
@@ -76,8 +85,12 @@ open class NextEventBenchmark {
      */
     @Benchmark
     fun nextEventWithPredicateSkip(bh: Blackhole) = runBlocking {
-        val deferred = async { bus.nextEvent<BenchEvent> { it.value > 100 } }
-        yield()
+        val ready = CompletableDeferred<Unit>()
+        val deferred = async {
+            ready.complete(Unit)
+            bus.nextEvent<BenchEvent> { it.value > 100 }
+        }
+        ready.await()
         bh.consume(bus.post(nonMatchingEvent))
         bh.consume(bus.post(matchingEvent))
         bh.consume(deferred.await())
@@ -86,8 +99,12 @@ open class NextEventBenchmark {
     /** `nextEventOrNull` that receives an event before timeout — hit path. */
     @Benchmark
     fun nextEventOrNullHit(bh: Blackhole) = runBlocking {
-        val deferred = async { bus.nextEventOrNull<BenchEvent>(5.seconds) }
-        yield()
+        val ready = CompletableDeferred<Unit>()
+        val deferred = async {
+            ready.complete(Unit)
+            bus.nextEventOrNull<BenchEvent>(5.seconds)
+        }
+        ready.await()
         bh.consume(bus.post(matchingEvent))
         bh.consume(deferred.await())
     }
