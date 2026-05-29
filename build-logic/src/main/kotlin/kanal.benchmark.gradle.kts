@@ -3,7 +3,7 @@ plugins {
 }
 
 jmh {
-    jmhVersion.set("1.37")
+    jmhVersion.set(libs.versions.jmh.get())
     resultFormat.set("JSON")
 
     if (project.hasProperty("jmhInclude")) {
