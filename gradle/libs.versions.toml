@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.3.0"
 jvm = "25"
+project = "0.2.0"
 jmh = "1.37"
 jmhPlugin = "0.7.3"
 dokka = "2.1.0"
@@ -11,7 +12,6 @@ coroutines = "1.10.2"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
-dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 
 [libraries]

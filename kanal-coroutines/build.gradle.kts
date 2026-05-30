@@ -4,8 +4,7 @@ plugins {
     id("kanal.benchmark")
 }
 
-group = "io.github.big-iron-cheems"
-version = "0.2.0"
+version = libs.versions.project.get()
 
 dependencies {
     api(project(":kanal-core"))
