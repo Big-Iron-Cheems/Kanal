@@ -206,3 +206,14 @@ The public API surface is tracked in `api/kanal-coroutines.api`. Any binary-inco
 will fail the build via `./gradlew :kanal-coroutines:checkLegacyAbi`.
 
 Internal implementation classes are excluded from the ABI surface and may change between releases.
+
+## Examples
+
+Runnable examples are in `src/examples/kotlin/`:
+
+| File                    | Covers                                                                                            |
+|-------------------------|---------------------------------------------------------------------------------------------------|
+| `AsFlowExample`         | Basic collection, Flow operators, priority, subscription lifetime, TypedEventBus                  |
+| `SuspendHandlerExample` | Parallel, DiscardIfBusy, ReplaceLatest behaviours, priority, cancellation, TypedEventBus          |
+| `NextEventExample`      | Basic await, type filtering, predicate, priority, single-shot, timeout, TypedEventBus             |
+| `PostSuspendExample`    | Basic usage, custom dispatcher, Unconfined, cancellable events, concurrent posting, TypedEventBus |
