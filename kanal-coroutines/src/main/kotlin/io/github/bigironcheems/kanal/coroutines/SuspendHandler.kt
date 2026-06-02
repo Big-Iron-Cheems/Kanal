@@ -86,23 +86,28 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
 }
 
 /**
- * Registers a suspend [handler] for event type [T] on this [TypedEventBus]
- * and returns a [Subscription] token.
+ * Registers a suspend [handler] for event type [T] and returns a [Subscription] token.
  *
- * Delegates to [EventBus.suspendHandler] on the underlying bus.
+ * The subscription is registered synchronously before returning. Events can be posted
+ * immediately after this call returns without any timing concerns.
+ *
+ * A [CoroutineScope] backed by a [SupervisorJob] and [Dispatchers.Default] is created
+ * internally when no scope is provided. In production code always supply an explicit
+ * [scope] to control handler coroutine lifecycle:
  *
  * ```kotlin
- * val networkBus = EventBus().typed<NetworkEvent>()
- * val sub = networkBus.suspendHandler<PacketReceived> { e ->
+ * // Production -- tied to component lifecycle
+ * val sub = bus.suspendHandler<PlayerJumpEvent>(scope = viewModelScope) { e ->
  *     delay(100)
- *     handle(e)
+ *     println(e.player)
  * }
  * sub.cancel()
  * ```
  *
  * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
  * @param behaviour Controls concurrency when events arrive faster than handlers complete.
- * @param scope     Coroutine scope for handler execution.
+ * @param scope     Coroutine scope for handler execution. Defaults to an internal
+ *                  unmanaged scope -- prefer supplying an explicit scope in production.
  * @param handler   The suspend function invoked for each matching event.
  */
 public inline fun <reified T : Event> TypedEventBus<in T>.suspendHandler(

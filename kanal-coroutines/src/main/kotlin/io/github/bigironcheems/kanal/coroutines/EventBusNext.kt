@@ -10,8 +10,12 @@ import kotlin.time.Duration
  * Suspends until the next event of type [T] matching [predicate] is posted,
  * then resumes with that event.
  *
- * The handler is registered on subscription and unregistered immediately after
- * the first matching event is received, or when the coroutine is cancelled.
+ * The handler is registered synchronously inside the coroutine body before
+ * the first suspension point. In a [kotlinx.coroutines.runBlocking] +
+ * [kotlinx.coroutines.launch] context, use [kotlinx.coroutines.Dispatchers.Unconfined]
+ * to ensure the coroutine body executes and registers the subscription before
+ * any event is posted. In a real coroutine scope that is already running,
+ * no special dispatcher is needed.
  *
  * ```kotlin
  * val packet = bus.nextEvent<PacketReceived>()

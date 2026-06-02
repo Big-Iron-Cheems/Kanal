@@ -2,26 +2,31 @@ package io.github.bigironcheems.kanal.coroutines
 
 import io.github.bigironcheems.kanal.Event
 import io.github.bigironcheems.kanal.EventBus
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Dispatches [event] on [context] and suspends until all handlers have finished.
  *
- * Delegates to [EventBus.post] on the specified coroutine context. Useful when
- * posting from a coroutine and you want to control which dispatcher the dispatch
- * runs on without blocking the calling coroutine's thread directly.
+ * Delegates to [EventBus.post] on the specified coroutine context. When called
+ * with no [context] argument, dispatch runs on the caller's current coroutine
+ * context with no thread hop. Pass an explicit [context] to shift dispatch to
+ * a specific dispatcher:
  *
  * ```kotlin
- * launch {
- *     bus.postSuspend(PlayerJumpEvent("Steve"))
+ * launch(Dispatchers.IO) {
+ *     bus.postSuspend(PlayerJumpEvent("Steve"))                    // stays on IO
+ *     bus.postSuspend(PlayerJumpEvent("Steve"), Dispatchers.Default) // shifts to Default
  * }
  * ```
  *
- * @param context The coroutine context to dispatch on; defaults to [Dispatchers.Default].
+ * For most cases [EventBus.post] is sufficient. [postSuspend] is useful when
+ * you need explicit dispatcher control over where dispatch runs.
+ *
+ * @param context The coroutine context to dispatch on; defaults to the caller's context.
  */
 public suspend fun <T : Event> EventBus.postSuspend(
     event: T,
-    context: CoroutineContext = Dispatchers.Default
+    context: CoroutineContext = EmptyCoroutineContext
 ): T = withContext(context) { post(event) }

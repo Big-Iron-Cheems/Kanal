@@ -11,25 +11,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * Demonstrates [asFlow] — exposing an [EventBus] event type as a Kotlin [kotlinx.coroutines.flow.Flow].
+ * Demonstrates [asFlow] -- exposing an [EventBus] event type as a Kotlin Flow.
  *
- * The subscription is registered when collection starts and removed when the collector
- * is cancelled or the flow completes naturally.
+ * ### When to use asFlow vs suspendHandler
+ * Use [asFlow] when you need Flow operators (filter, map, take, merge, etc.).
+ * Use [io.github.bigironcheems.kanal.coroutines.suspendHandler] when you only
+ * need to handle each event with suspend logic -- it registers synchronously and
+ * has no subscription timing concerns.
  *
  * ### Subscription timing
- * `asFlow` registers its subscription inside the collector coroutine body. In a concurrent
- * context the subscription may not be active immediately after [launch].
- *
- * These examples use [Dispatchers.Unconfined] when launching the collector, which runs
- * the coroutine eagerly on the current thread until the first suspension point (`awaitClose`).
- * This guarantees `subscribe()` has been called before any event is posted.
- *
- * If you only need to handle events with suspend logic and don't need Flow operators,
- * prefer [io.github.bigironcheems.kanal.coroutines.suspendHandler] which registers
- * synchronously and avoids this concern entirely.
+ * [asFlow] uses [kotlinx.coroutines.flow.callbackFlow] internally. The subscription
+ * is registered when the collector coroutine body starts executing, which in a
+ * [kotlinx.coroutines.runBlocking] context requires [Dispatchers.Unconfined] to
+ * guarantee registration before posting. In a real coroutine scope (viewModelScope,
+ * lifecycleScope) the collector is already running when you post, so no special
+ * dispatcher is needed.
  */
 
-// 1. Basic collection — collect N events then terminate via take()
+// 1. Basic collection -- collect N events then terminate via take()
+// Uses Dispatchers.Unconfined to guarantee subscription is registered before posting
+// in this runBlocking example context.
 
 fun flowBasicCollection() = runBlocking {
     val bus = EventBus()
@@ -45,7 +46,7 @@ fun flowBasicCollection() = runBlocking {
     job.join()
 }
 
-// 2. Flow operators — filter, take, toList
+// 2. Flow operators -- filter, take, toList
 
 fun flowWithFlowOperators() = runBlocking {
     val bus = EventBus()
@@ -60,11 +61,11 @@ fun flowWithFlowOperators() = runBlocking {
 
     bus.post(PlayerJumpEvent("Steve"))  // collected
     bus.post(PlayerJumpEvent("Alex"))   // filtered out
-    bus.post(PlayerJumpEvent("Sam"))    // collected — take(2) completes
+    bus.post(PlayerJumpEvent("Sam"))    // collected -- take(2) completes
     job.join()
 }
 
-// 3. Priority — flow collector at HIGH fires before NORMAL subscriber
+// 3. Priority -- flow collector at HIGH fires before NORMAL subscriber
 
 fun flowWithPriority() = runBlocking {
     val bus = EventBus()
@@ -84,7 +85,7 @@ fun flowWithPriority() = runBlocking {
     println("Order: $order") // [flow-high, normal]
 }
 
-// 4. Subscription lifetime — handler registered on collect, removed on cancellation
+// 4. Subscription lifetime -- handler registered on collect, removed on cancellation
 
 fun flowSubscriptionLifetime() = runBlocking {
     val bus = EventBus()
@@ -98,7 +99,7 @@ fun flowSubscriptionLifetime() = runBlocking {
     println("Listening: ${bus.isListening<PlayerJumpEvent>()}") // false
 }
 
-// 5. TypedEventBus — asFlow on a typed bus view
+// 5. TypedEventBus -- asFlow on a typed bus view
 
 fun flowTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()
@@ -109,12 +110,12 @@ fun flowTypedBus() = runBlocking {
             .collect { e -> println("Received ${e.bytes.size} bytes") }
     }
 
-    networkBus.post(ConnectionLost("timeout")) // not collected — different type
+    networkBus.post(ConnectionLost("timeout")) // not collected -- different type
     networkBus.post(PacketReceived(ByteArray(128)))
     job.join()
 }
 
-// 6. Collecting into a list — take N events and terminate
+// 6. Collecting into a list -- take N events and terminate
 
 fun flowCollectIntoList() = runBlocking {
     val bus = EventBus()

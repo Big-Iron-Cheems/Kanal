@@ -45,7 +45,9 @@ fun postSuspendWithDispatcher() = runBlocking {
     bus.postSuspend(PlayerJumpEvent("Steve"), Dispatchers.IO)
 }
 
-// 3. postSuspend with Dispatchers.Unconfined — no thread hop, minimal overhead
+// 3. postSuspend with Dispatchers.Unconfined -- explicit no-hop dispatch
+// Equivalent to the default when called without a context argument,
+// but explicit when you want to document intent.
 
 fun postSuspendUnconfined() = runBlocking {
     val bus = EventBus()

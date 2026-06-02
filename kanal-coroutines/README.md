@@ -75,19 +75,19 @@ networkBus.asFlow<PacketReceived>()
 ### `postSuspend`
 
 Dispatches an event from a coroutine context. Suspends until all handlers finish.
+Defaults to the caller's coroutine context -- no thread hop unless an explicit context is provided.
 
 ```kotlin
 launch {
-    bus.postSuspend(PlayerJumpEvent("Steve"))
+    bus.postSuspend(PlayerJumpEvent("Steve")) // stays on caller's dispatcher
 }
 
-// With custom dispatcher
+// Shift to a specific dispatcher
 bus.postSuspend(PlayerJumpEvent("Steve"), Dispatchers.IO)
 ```
 
-Defaults to `Dispatchers.Default`. Use `Dispatchers.Unconfined` to dispatch on the
-calling coroutine's thread with no context switch — cost is ~10x `post` vs ~700x for
-`Dispatchers.Default` due to thread hop overhead.
+Use `postSuspend` when you need explicit dispatcher control. For most cases
+`EventBus.post` is sufficient.
 
 ### `suspendHandler`
 
@@ -187,6 +187,7 @@ Benchmarked with JMH on JDK 25. All coroutine benchmarks include `runBlocking` b
 | `suspendHandler` (`ReplaceLatest`)       | ~1.4 µs       | Cancel + relaunch                         |
 | `postSuspend` (`Dispatchers.Unconfined`) | ~260 ns       | No thread hop                             |
 | `postSuspend` (`Dispatchers.Default`)    | ~17 µs        | Thread hop dominates                      |
+| `postSuspend` (default, no hop)          | ~same as post | EmptyCoroutineContext, no thread switch   |
 | `nextEvent` end-to-end                   | ~164 µs       | Coroutine scheduler round-trip            |
 | `TypedEventBus` adapter overhead         | ~0%           | Delegation inlined by JIT                 |
 

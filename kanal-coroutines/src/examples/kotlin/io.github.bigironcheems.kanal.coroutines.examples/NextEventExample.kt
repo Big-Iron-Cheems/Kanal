@@ -13,15 +13,17 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Demonstrates [nextEvent] and [nextEventOrNull] — suspending until a single
+ * Demonstrates [nextEvent] and [nextEventOrNull] -- suspending until a single
  * matching event arrives.
  *
- * Unlike [io.github.bigironcheems.kanal.coroutines.asFlow], [nextEvent] registers
- * its subscription synchronously before suspending, so there is no subscription
- * timing race. Events can be posted immediately after [launch].
+ * These examples use [kotlinx.coroutines.Dispatchers.Unconfined] when launching
+ * the awaiter coroutine. This runs the coroutine eagerly on the current thread
+ * until the first suspension point ([kotlinx.coroutines.suspendCancellableCoroutine]),
+ * guaranteeing the subscription is registered before any event is posted.
+ * In a real coroutine scope that is already running, no special dispatcher is needed.
  */
 
-// 1. Basic nextEvent — suspend until the first matching event
+// 1. Basic nextEvent -- suspend until the first matching event
 
 fun nextEventBasic() = runBlocking {
     val bus = EventBus()
@@ -45,12 +47,12 @@ fun nextEventIgnoresOtherTypes() = runBlocking {
         println("Got: ${event.player}")
     }
 
-    bus.post(BlockBreakEvent("stone")) // ignored — wrong type
-    bus.post(PlayerJumpEvent("Alex"))  // received
+    bus.post(BlockBreakEvent("stone"))
+    bus.post(PlayerJumpEvent("Alex"))
     job.join()
 }
 
-// 3. nextEvent with predicate — skip events that don't match
+// 3. nextEvent with predicate -- skip events that do not match
 
 fun nextEventWithPredicate() = runBlocking {
     val bus = EventBus()
@@ -60,9 +62,9 @@ fun nextEventWithPredicate() = runBlocking {
         println("High damage: ${event.value}")
     }
 
-    bus.post(DamageEvent(2.0))  // skipped — below threshold
-    bus.post(DamageEvent(3.0))  // skipped
-    bus.post(DamageEvent(8.0))  // received
+    bus.post(DamageEvent(2.0))
+    bus.post(DamageEvent(3.0))
+    bus.post(DamageEvent(8.0))
     job.join()
 }
 
@@ -82,10 +84,10 @@ fun nextEventWithPriority() = runBlocking {
     bus.post(PlayerJumpEvent("Steve"))
     job.join()
 
-    println("Order: $order") // [nextEvent-high, normal]
+    println("Order: $order")
 }
 
-// 5. nextEvent unregisters after first match — subsequent events not received
+// 5. nextEvent unregisters after first match -- subsequent events not received
 
 fun nextEventSingleShot() = runBlocking {
     val bus = EventBus()
@@ -96,15 +98,15 @@ fun nextEventSingleShot() = runBlocking {
         count++
     }
 
-    bus.post(PlayerJumpEvent("Steve")) // received — resumes coroutine
+    bus.post(PlayerJumpEvent("Steve"))
     job.join()
-    println("Count: $count") // 1
+    println("Count: $count")
 
-    bus.post(PlayerJumpEvent("Alex"))  // not received — handler already consumed
-    println("Count after second post: $count") // still 1 — single-shot confirmed
+    bus.post(PlayerJumpEvent("Alex"))
+    println("Count after second post: $count")
 }
 
-// 6. nextEventOrNull — returns null on timeout
+// 6. nextEventOrNull -- returns null on timeout
 
 fun nextEventOrNullTimeout() = runBlocking {
     val bus = EventBus()
@@ -113,11 +115,11 @@ fun nextEventOrNullTimeout() = runBlocking {
     if (event != null) {
         println("Got: ${event.player}")
     } else {
-        println("Timed out — no event arrived")
+        println("Timed out -- no event arrived")
     }
 }
 
-// 7. nextEventOrNull — returns event when received before timeout
+// 7. nextEventOrNull -- returns event when received before timeout
 
 fun nextEventOrNullHit() = runBlocking {
     val bus = EventBus()
@@ -141,12 +143,12 @@ fun nextEventOrNullWithPredicate() = runBlocking {
         println("High damage: ${event?.value ?: "timed out"}")
     }
 
-    bus.post(DamageEvent(2.0)) // skipped
-    bus.post(DamageEvent(8.0)) // received
+    bus.post(DamageEvent(2.0))
+    bus.post(DamageEvent(8.0))
     job.join()
 }
 
-// 9. TypedEventBus — nextEvent on a typed bus view
+// 9. TypedEventBus -- nextEvent on a typed bus view
 
 fun nextEventTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()
@@ -156,12 +158,12 @@ fun nextEventTypedBus() = runBlocking {
         println("Received ${event.bytes.size} bytes")
     }
 
-    networkBus.post(ConnectionLost("timeout")) // ignored — different type
+    networkBus.post(ConnectionLost("timeout"))
     networkBus.post(PacketReceived(ByteArray(64)))
     job.join()
 }
 
-// 10. TypedEventBus — nextEventOrNull with timeout
+// 10. TypedEventBus -- nextEventOrNull with timeout
 
 fun nextEventOrNullTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()

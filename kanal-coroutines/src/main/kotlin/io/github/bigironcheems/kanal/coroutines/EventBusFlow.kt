@@ -11,25 +11,27 @@ import kotlinx.coroutines.flow.callbackFlow
  * The handler is registered when the flow is collected and unregistered when
  * the collector is cancelled, via [awaitClose].
  *
+ * ### When to use asFlow vs suspendHandler
+ * Use [asFlow] when you need Flow operators (filter, map, take, merge, etc.).
+ * Use [suspendHandler] when you only need to handle each event with suspend logic
+ * -- it registers synchronously and has no subscription timing concerns.
+ *
  * ### Subscription timing
- * The subscription is registered inside the collector coroutine body. In a concurrent
- * context, the subscription may not be active immediately after [kotlinx.coroutines.launch].
- * Use [kotlinx.coroutines.Dispatchers.Unconfined] when launching the collector to run
- * the coroutine eagerly on the current thread until the first suspension point, guaranteeing
- * the subscription is registered before any event is posted:
+ * The subscription is registered inside the collector coroutine body. In a tight
+ * [kotlinx.coroutines.runBlocking] + [kotlinx.coroutines.launch] context, use
+ * [kotlinx.coroutines.Dispatchers.Unconfined] when launching the collector to
+ * guarantee registration before posting:
  *
  * ```kotlin
  * val job = launch(Dispatchers.Unconfined) {
- *     bus.asFlow<MyEvent>()
- *         .take(N)
- *         .collect { e -> handle(e) }
+ *     bus.asFlow<MyEvent>().take(N).collect { e -> handle(e) }
  * }
- * bus.post(MyEvent()) // safe — subscription guaranteed registered
+ * bus.post(MyEvent()) // safe -- subscription guaranteed registered
  * job.join()
  * ```
  *
- * If you only need to handle events with suspend logic and don't need Flow operators,
- * prefer [suspendHandler] which registers synchronously and avoids this concern entirely.
+ * In a real coroutine scope (viewModelScope, lifecycleScope, etc.) the collector
+ * is already running when you post, so no special dispatcher is needed.
  *
  * @param priority Dispatch priority; defaults to [Priority.NORMAL].
  */
@@ -45,8 +47,7 @@ public inline fun <reified T : Event> EventBus.asFlow(priority: Int = Priority.N
  *
  * ```kotlin
  * val networkBus = EventBus().typed<NetworkEvent>()
- * networkBus.asFlow<PacketReceived>()
- *     .collect { e -> handle(e) }
+ * networkBus.asFlow<PacketReceived>().collect { e -> handle(e) }
  * ```
  *
  * @param priority Dispatch priority; defaults to [Priority.NORMAL].
