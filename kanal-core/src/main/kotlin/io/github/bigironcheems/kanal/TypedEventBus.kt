@@ -204,8 +204,7 @@ public interface TypedEventBus<E : Event> {
  *
  * @param rootClass Unused at runtime (erased); present only to satisfy Java's type inference.
  */
-@Suppress("UNUSED_PARAMETER")
-public fun <E : Event> EventBus.typed(rootClass: Class<E>): TypedEventBus<E> =
+public fun <E : Event> EventBus.typed(@Suppress("unused") rootClass: Class<E>): TypedEventBus<E> =
     TypedEventBusAdapter(this)
 
 /**

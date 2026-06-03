@@ -1,5 +1,7 @@
 package io.github.bigironcheems.kanal
 
+import io.github.bigironcheems.kanal.EventBus.Companion.createWithHandler
+import io.github.bigironcheems.kanal.EventBus.Companion.invoke
 import io.github.bigironcheems.kanal.internal.SimpleEventBus
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -311,7 +313,6 @@ public interface EventBus {
  * @param async If `true`, dispatches on the bus's executor; falls back to sync if none configured.
  * @return a [Subscription] whose [Subscription.cancel] removes this handler.
  */
-@Suppress("UNCHECKED_CAST")
 public inline fun <reified T : Event> EventBus.subscribe(
     priority: Int = Priority.NORMAL,
     async: Boolean = false,
