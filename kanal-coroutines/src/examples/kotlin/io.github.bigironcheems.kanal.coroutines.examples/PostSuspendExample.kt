@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * Demonstrates [postSuspend] — dispatching events from a coroutine context.
+ * Demonstrates [postSuspend] - dispatching events from a coroutine context.
  *
  * [postSuspend] wraps [io.github.bigironcheems.kanal.EventBus.post] in a
  * [kotlinx.coroutines.withContext] call, suspending until all handlers finish.
@@ -24,7 +24,7 @@ import kotlinx.coroutines.runBlocking
  * - you need explicit control over which thread dispatch runs on
  */
 
-// 1. Basic postSuspend — dispatch from a coroutine
+// 1. Basic postSuspend - dispatch from a coroutine
 
 fun postSuspendBasic() = runBlocking {
     val bus = EventBus()
@@ -33,7 +33,7 @@ fun postSuspendBasic() = runBlocking {
     bus.postSuspend(PlayerJumpEvent("Steve"))
 }
 
-// 2. postSuspend with custom dispatcher — dispatch on a specific thread pool
+// 2. postSuspend with custom dispatcher - dispatch on a specific thread pool
 
 fun postSuspendWithDispatcher() = runBlocking {
     val bus = EventBus()
@@ -53,7 +53,7 @@ fun postSuspendUnconfined() = runBlocking {
     val bus = EventBus()
     bus.subscribe<PlayerJumpEvent> { e -> println("${e.player} jumped") }
 
-    // Unconfined runs on the calling thread — cost closest to plain post()
+    // Unconfined runs on the calling thread - cost closest to plain post()
     bus.postSuspend(PlayerJumpEvent("Steve"), Dispatchers.Unconfined)
 }
 
@@ -71,7 +71,7 @@ fun postSuspendAwaitsHandlers() = runBlocking {
     }
 
     bus.postSuspend(PlayerJumpEvent("Steve"))
-    // postSuspend has returned — all handlers have run
+    // postSuspend has returned - all handlers have run
     println("Results: $results") // [high: Steve, low: Steve]
 }
 
@@ -121,7 +121,7 @@ fun postSuspendConcurrent() = runBlocking {
     println("Received ${received.size} events: $received")
 }
 
-// 7. TypedEventBus — postSuspend via typed bus delegate
+// 7. TypedEventBus - postSuspend via typed bus delegate
 
 fun postSuspendTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()
@@ -129,7 +129,7 @@ fun postSuspendTypedBus() = runBlocking {
         println("Received ${e.bytes.size} bytes")
     }
 
-    // postSuspend is an EventBus extension — use delegate for typed bus
+    // postSuspend is an EventBus extension - use delegate for typed bus
     networkBus.delegate.postSuspend(PacketReceived(ByteArray(64)))
 }
 

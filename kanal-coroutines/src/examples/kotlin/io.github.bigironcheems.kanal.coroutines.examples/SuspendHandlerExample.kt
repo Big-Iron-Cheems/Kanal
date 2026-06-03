@@ -7,7 +7,7 @@ import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Demonstrates [suspendHandler] — registering a suspend lambda handler on an [EventBus].
+ * Demonstrates [suspendHandler] - registering a suspend lambda handler on an [EventBus].
  *
  * Unlike [io.github.bigironcheems.kanal.coroutines.asFlow], [suspendHandler] registers
  * its subscription synchronously before returning, so there is no subscription timing
@@ -18,7 +18,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * an unmanaged scope with no structured cancellation guarantee.
  */
 
-// 1. Parallel — new coroutine per event, all run concurrently
+// 1. Parallel - new coroutine per event, all run concurrently
 
 fun handlerParallelBehaviour() = runBlocking {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -42,7 +42,7 @@ fun handlerParallelBehaviour() = runBlocking {
     sub.cancel()
 }
 
-// 2. DiscardIfBusy — skip new events while handler is still running
+// 2. DiscardIfBusy - skip new events while handler is still running
 
 fun handlerDiscardIfBusyBehaviour() = runBlocking {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -58,17 +58,17 @@ fun handlerDiscardIfBusyBehaviour() = runBlocking {
         println("Handled: ${e.player}")
     }
 
-    // Post 3 events rapidly — only first is handled, rest discarded while handler runs
+    // Post 3 events rapidly - only first is handled, rest discarded while handler runs
     bus.post(PlayerJumpEvent("Steve"))  // handled
-    bus.post(PlayerJumpEvent("Alex"))   // discarded — first still running
-    bus.post(PlayerJumpEvent("Sam"))    // discarded — first still running
+    bus.post(PlayerJumpEvent("Alex"))   // discarded - first still running
+    bus.post(PlayerJumpEvent("Sam"))    // discarded - first still running
 
     delay(300.milliseconds)
     println("Total handled: $handledCount") // 1
     sub.cancel()
 }
 
-// 3. ReplaceLatest — cancel previous coroutine, launch new one for latest event
+// 3. ReplaceLatest - cancel previous coroutine, launch new one for latest event
 
 fun handlerReplaceLatestBehaviour() = runBlocking {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -95,7 +95,7 @@ fun handlerReplaceLatestBehaviour() = runBlocking {
     sub.cancel()
 }
 
-// 4. Priority — note: suspendHandler launches a coroutine asynchronously,
+// 4. Priority - note: suspendHandler launches a coroutine asynchronously,
 // so the order depends on when the coroutine scheduler runs the handler.
 // The dispatch priority controls when the coroutine is *launched*, not when
 // it *completes*. For deterministic ordering use a sync @Subscribe handler instead.
@@ -113,12 +113,12 @@ fun handlerWithPriority() = runBlocking {
 
     bus.post(PlayerJumpEvent("Steve"))
     delay(100.milliseconds)
-    println("Order: $order") // [sync-normal, suspend-high] — sync fires during post(),
+    println("Order: $order") // [sync-normal, suspend-high] - sync fires during post(),
     // suspend-high fires when coroutine scheduler runs
     sub.cancel()
 }
 
-// 5. Subscription cancellation — handler unregistered on cancel
+// 5. Subscription cancellation - handler unregistered on cancel
 
 fun handlerSubscriptionCancellation() = runBlocking {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -138,7 +138,7 @@ fun handlerSubscriptionCancellation() = runBlocking {
     println("Listening: ${bus.isListening<PlayerJumpEvent>()}") // false
 }
 
-// 6. TypedEventBus — suspendHandler on a typed bus view
+// 6. TypedEventBus - suspendHandler on a typed bus view
 
 fun handlerTypedBus() = runBlocking {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -150,7 +150,7 @@ fun handlerTypedBus() = runBlocking {
     }
 
     networkBus.post(PacketReceived(ByteArray(64)))
-    networkBus.post(ConnectionLost("timeout")) // not handled — different type
+    networkBus.post(ConnectionLost("timeout")) // not handled - different type
     networkBus.post(PacketReceived(ByteArray(128)))
 
     delay(100.milliseconds)

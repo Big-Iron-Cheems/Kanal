@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Measures deterministically measurable costs of [asFlow]:
  *
- * - [directSubscribe]: plain `@Subscribe` handler — raw dispatch cost baseline.
+ * - [directSubscribe]: plain `@Subscribe` handler - raw dispatch cost baseline.
  * - [asFlowSubscribeCancel]: cost of starting a Flow collector and cancelling it;
  *   measures subscription registration + cleanup overhead, not event delivery.
  * - [postToActiveFlow]: post throughput when a Flow collector is already active;
@@ -65,7 +65,7 @@ open class AsFlowBenchmark {
         activeFlowBus.asFlow<BenchEvent>()
             .launchIn(activeFlowScope)
         // Give the collector coroutine time to start and register its subscription.
-        // This is acceptable in @Setup — we are not timing this.
+        // This is acceptable in @Setup - we are not timing this.
         Thread.sleep(50)
     }
 

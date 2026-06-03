@@ -30,11 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * This isolates the dispatch-call cost (the AtomicReference checks, coroutine
  * launch scheduling) from thread-pool contention.
  *
- * - [parallelDispatch]: [SuspendHandlerBehaviour.Parallel] — launches a new
+ * - [parallelDispatch]: [SuspendHandlerBehaviour.Parallel] - launches a new
  *   coroutine for every event.
- * - [discardIfBusyDispatch]: [SuspendHandlerBehaviour.DiscardIfBusy] — checks
+ * - [discardIfBusyDispatch]: [SuspendHandlerBehaviour.DiscardIfBusy] - checks
  *   active job before launching; cheapest when handler is still running.
- * - [replaceLatestDispatch]: [SuspendHandlerBehaviour.ReplaceLatest] — cancels
+ * - [replaceLatestDispatch]: [SuspendHandlerBehaviour.ReplaceLatest] - cancels
  *   previous job and launches a new one; measures cancellation overhead.
  * - [baselineDirectSubscribe]: plain synchronous `@Subscribe` handler as a
  *   baseline to isolate coroutine launch overhead vs raw dispatch cost.

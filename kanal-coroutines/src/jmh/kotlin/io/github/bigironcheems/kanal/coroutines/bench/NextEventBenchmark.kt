@@ -53,7 +53,7 @@ open class NextEventBenchmark {
         bus = EventBus()
     }
 
-    /** Plain `nextEvent` with no predicate — baseline for single-event await. */
+    /** Plain `nextEvent` with no predicate - baseline for single-event await. */
     @Benchmark
     fun nextEventNoFilter(bh: Blackhole) = runBlocking {
         val ready = CompletableDeferred<Unit>()
@@ -96,7 +96,7 @@ open class NextEventBenchmark {
         bh.consume(deferred.await())
     }
 
-    /** `nextEventOrNull` that receives an event before timeout — hit path. */
+    /** `nextEventOrNull` that receives an event before timeout - hit path. */
     @Benchmark
     fun nextEventOrNullHit(bh: Blackhole) = runBlocking {
         val ready = CompletableDeferred<Unit>()
@@ -110,7 +110,7 @@ open class NextEventBenchmark {
     }
 
     /**
-     * `nextEventOrNull` that times out — miss path.
+     * `nextEventOrNull` that times out - miss path.
      * Uses a 1ms timeout to keep benchmark duration reasonable while still
      * exercising the full timeout/cancellation code path.
      */

@@ -16,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Measures the overhead of the [TypedEventBus] adapter layer with coroutines extensions.
  *
- * Each raw/typed pair uses the same underlying bus where possible — the only
+ * Each raw/typed pair uses the same underlying bus where possible - the only
  * difference is whether the call goes through the typed adapter wrapper.
  * Any delta isolates pure adapter delegation cost, expected to be negligible.
  *
@@ -36,7 +36,7 @@ open class TypedBusCoroutinesBenchmark {
     sealed interface DomainEvent : Event
     class PacketEvent(val value: Int = 1) : DomainEvent
 
-    // handler buses — stable across iterations
+    // handler buses - stable across iterations
     private lateinit var rawHandlerBus: EventBus
     private lateinit var typedHandlerUnderlying: EventBus
     private lateinit var typedHandlerBus: TypedEventBus<DomainEvent>
@@ -44,12 +44,12 @@ open class TypedBusCoroutinesBenchmark {
     private lateinit var scope: CoroutineScope
     private lateinit var executor: java.util.concurrent.ExecutorService
 
-    // nextEvent buses — recreated per iteration
+    // nextEvent buses - recreated per iteration
     private lateinit var rawNextBus: EventBus
     private lateinit var typedNextUnderlying: EventBus
     private lateinit var typedNextBus: TypedEventBus<DomainEvent>
 
-    // active flow buses — set up in setupIteration with sleep barrier
+    // active flow buses - set up in setupIteration with sleep barrier
     private lateinit var rawFlowBus: EventBus
     private lateinit var typedFlowUnderlying: EventBus
     private lateinit var typedFlowBus: TypedEventBus<DomainEvent>
@@ -108,7 +108,7 @@ open class TypedBusCoroutinesBenchmark {
         executor.shutdown()
     }
 
-    // — asFlow post throughput (collector already active)
+    // - asFlow post throughput (collector already active)
 
     @Benchmark
     fun rawPostToActiveFlow(bh: Blackhole): PacketEvent {
@@ -122,7 +122,7 @@ open class TypedBusCoroutinesBenchmark {
         return event
     }
 
-    // — nextEvent (CompletableDeferred barrier)
+    // - nextEvent (CompletableDeferred barrier)
 
     @Benchmark
     fun rawNextEvent(bh: Blackhole) = runBlocking {
@@ -148,7 +148,7 @@ open class TypedBusCoroutinesBenchmark {
         bh.consume(deferred.await())
     }
 
-    // — nextEventOrNull hit path
+    // - nextEventOrNull hit path
 
     @Benchmark
     fun rawNextEventOrNull(bh: Blackhole) = runBlocking {
@@ -174,7 +174,7 @@ open class TypedBusCoroutinesBenchmark {
         bh.consume(deferred.await())
     }
 
-    // — suspendHandler dispatch throughput
+    // - suspendHandler dispatch throughput
 
     @Benchmark
     fun rawSuspendHandler(bh: Blackhole): PacketEvent {

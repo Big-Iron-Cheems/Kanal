@@ -13,11 +13,11 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Compares dispatch latency across the three posting APIs:
- * - [syncPost]: plain synchronous `post` — baseline with no coroutine overhead.
- * - [suspendPostDefault]: `postSuspend` on [Dispatchers.Default] — measures context switch cost.
- * - [suspendPostUnconfined]: `postSuspend` on [Dispatchers.Unconfined] — measures pure suspend overhead
+ * - [syncPost]: plain synchronous `post` - baseline with no coroutine overhead.
+ * - [suspendPostDefault]: `postSuspend` on [Dispatchers.Default] - measures context switch cost.
+ * - [suspendPostUnconfined]: `postSuspend` on [Dispatchers.Unconfined] - measures pure suspend overhead
  *   without a dispatcher hop; closest to `post` in terms of threading.
- * - [asyncPost]: `postAsync` with a virtual-thread executor — measures CompletableFuture overhead
+ * - [asyncPost]: `postAsync` with a virtual-thread executor - measures CompletableFuture overhead
  *   as a reference point for the async path.
  *
  * All coroutine benchmarks block via [runBlocking] to produce a synchronous measurement.
@@ -64,7 +64,7 @@ open class PostSuspendBenchmark {
     }
 
     /**
-     * `postSuspend` on [Dispatchers.Default] — includes a thread hop to the
+     * `postSuspend` on [Dispatchers.Default] - includes a thread hop to the
      * default dispatcher pool and back via [runBlocking].
      */
     @Benchmark
@@ -74,7 +74,7 @@ open class PostSuspendBenchmark {
     }
 
     /**
-     * `postSuspend` on [Dispatchers.Unconfined] — no thread hop; runs on the
+     * `postSuspend` on [Dispatchers.Unconfined] - no thread hop; runs on the
      * calling thread. Delta vs [syncPost] isolates pure coroutine machinery cost.
      */
     @Benchmark
@@ -84,7 +84,7 @@ open class PostSuspendBenchmark {
     }
 
     /**
-     * `postAsync` with a virtual-thread executor — reference point for the
+     * `postAsync` with a virtual-thread executor - reference point for the
      * existing async path. Blocks via [java.util.concurrent.CompletableFuture.join].
      */
     @Benchmark
