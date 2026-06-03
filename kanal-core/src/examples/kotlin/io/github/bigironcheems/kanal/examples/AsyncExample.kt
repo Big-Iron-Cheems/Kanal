@@ -12,7 +12,7 @@ import java.util.concurrent.Executors
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// 1. Basic postAsync — fire and forget vs awaiting completion
+// 1. Basic postAsync - fire and forget vs awaiting completion
 // ---------------------------------------------------------------------------
 
 fun basicPostAsync() {
@@ -21,7 +21,7 @@ fun basicPostAsync() {
         println("[async] received ${e.bytes.size} bytes on ${Thread.currentThread().name}")
     }
 
-    // Fire and forget — returns immediately; handler runs on a virtual thread.
+    // Fire and forget - returns immediately; handler runs on a virtual thread.
     val future = bus.postAsync(PacketEvent(ByteArray(128)))
 
     // Await completion to ensure the handler has finished before continuing.
@@ -30,7 +30,7 @@ fun basicPostAsync() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. @Subscribe(async = true) — annotation-based async handler
+// 2. @Subscribe(async = true) - annotation-based async handler
 // ---------------------------------------------------------------------------
 
 class NetworkListener {
@@ -69,13 +69,13 @@ fun blockingPostWithAsyncHandlers() {
         println("handled ${e.bytes.size} bytes")
     }
 
-    // Returns only after all handlers finish — same guarantee as plain post().
+    // Returns only after all handlers finish - same guarantee as plain post().
     val event = bus.post(PacketEvent(ByteArray(64)))
     println("post returned: $event")
 }
 
 // ---------------------------------------------------------------------------
-// 4. Mixed sync + async handlers — priority and mutation visibility
+// 4. Mixed sync + async handlers - priority and mutation visibility
 //
 // The bus chains handlers in priority order. A lower-priority sync handler
 // waits for all higher-priority async handlers to complete before running,
@@ -90,7 +90,7 @@ fun mixedSyncAsync() {
         println("[HIGH async] doubled to ${e.value}")
     }
     bus.subscribe<DamageEvent>(Priority.LOW) { e ->
-        // Runs after HIGH async completes — sees the doubled value.
+        // Runs after HIGH async completes - sees the doubled value.
         println("[LOW sync] final value: ${e.value}")
     }
 
@@ -112,7 +112,7 @@ fun asyncCancellation() {
     val bus = EventBus(Executors.newVirtualThreadPerTaskExecutor())
 
     bus.subscribe<NetworkRequestEvent>(Priority.HIGH, async = true) { e ->
-        println("Validating ${e.url} — blocking request")
+        println("Validating ${e.url} - blocking request")
         e.isCancelled = true   // cancel: subsequent handlers will not run
     }
     bus.subscribe<NetworkRequestEvent>(Priority.LOW, async = true) { e ->

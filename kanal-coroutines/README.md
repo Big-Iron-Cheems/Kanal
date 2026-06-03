@@ -1,6 +1,6 @@
 # kanal-coroutines
 
-Kotlin coroutines extensions for `kanal-core`. Kotlin-only — no Java API surface.
+Kotlin coroutines extensions for `kanal-core`. Kotlin-only - no Java API surface.
 
 ## Installation
 
@@ -22,13 +22,13 @@ Replace `$VERSION` with the latest version shown in the [root README](../README.
 
 ## Features
 
-- **`asFlow`** — expose any event type as a `Flow<T>`; subscription lifecycle tied to the collector.
-- **`postSuspend`** — dispatch events from a coroutine context with configurable dispatcher.
-- **`suspendHandler`** — register suspend lambda handlers with `Parallel`, `DiscardIfBusy`, or `ReplaceLatest`
+- **`asFlow`** - expose any event type as a `Flow<T>`; subscription lifecycle tied to the collector.
+- **`postSuspend`** - dispatch events from a coroutine context with configurable dispatcher.
+- **`suspendHandler`** - register suspend lambda handlers with `Parallel`, `DiscardIfBusy`, or `ReplaceLatest`
   concurrency behaviour.
-- **`nextEvent`** — suspend until the next matching event arrives; single-shot, unregisters automatically.
-- **`nextEventOrNull`** — like `nextEvent` with a timeout; returns `null` if no event arrives in time.
-- **`TypedEventBus` support** — all extensions available on `TypedEventBus<E>` with the same type safety guarantees.
+- **`nextEvent`** - suspend until the next matching event arrives; single-shot, unregisters automatically.
+- **`nextEventOrNull`** - like `nextEvent` with a timeout; returns `null` if no event arrives in time.
+- **`TypedEventBus` support** - all extensions available on `TypedEventBus<E>` with the same type safety guarantees.
 
 ## Quick start
 
@@ -75,7 +75,7 @@ networkBus.asFlow<PacketReceived>()
 ### `postSuspend`
 
 Dispatches an event from a coroutine context. Suspends until all handlers finish.
-Defaults to the caller's coroutine context -- no thread hop unless an explicit context is provided.
+Defaults to the caller's coroutine context - no thread hop unless an explicit context is provided.
 
 ```kotlin
 launch {
@@ -95,19 +95,19 @@ Registers a suspend lambda handler and returns a `Subscription` token.
 Controls concurrent execution via `SuspendHandlerBehaviour`.
 
 ```kotlin
-// Parallel — new coroutine per event (default)
+// Parallel - new coroutine per event (default)
 val sub = bus.suspendHandler<PacketReceived> { e ->
     delay(100)
     handle(e)
 }
 sub.cancel()
 
-// DiscardIfBusy — skip if previous handler still running
+// DiscardIfBusy - skip if previous handler still running
 bus.suspendHandler<PacketReceived>(
     behaviour = SuspendHandlerBehaviour.DiscardIfBusy
 ) { e -> handle(e) }
 
-// ReplaceLatest — cancel previous, launch new
+// ReplaceLatest - cancel previous, launch new
 bus.suspendHandler<PacketReceived>(
     behaviour = SuspendHandlerBehaviour.ReplaceLatest
 ) { e -> handle(e) }
@@ -132,7 +132,7 @@ networkBus.suspendHandler<PacketReceived> { e -> handle(e) }
 
 ### `nextEvent`
 
-Suspends until the next matching event arrives. Single-shot — resumes once and unregisters.
+Suspends until the next matching event arrives. Single-shot - resumes once and unregisters.
 
 ```kotlin
 val packet = bus.nextEvent<PacketReceived>()
@@ -181,14 +181,14 @@ Benchmarked with JMH on JDK 25. All coroutine benchmarks include `runBlocking` b
 | Operation                                | Cost          | Notes                                     |
 |------------------------------------------|---------------|-------------------------------------------|
 | `postToActiveFlow`                       | ~120 ns/event | +`trySend` channel overhead vs raw `post` |
-| `asFlow` setup + cancel                  | ~4.5 µs       | Fixed Flow subscription lifecycle cost    |
+| `asFlow` setup + cancel                  | ~4.5 us       | Fixed Flow subscription lifecycle cost    |
 | `suspendHandler` (`DiscardIfBusy`)       | ~35 ns        | Atomic check only                         |
 | `suspendHandler` (`Parallel`)            | ~363 ns       | Coroutine launch per event                |
-| `suspendHandler` (`ReplaceLatest`)       | ~1.4 µs       | Cancel + relaunch                         |
+| `suspendHandler` (`ReplaceLatest`)       | ~1.4 us       | Cancel + relaunch                         |
 | `postSuspend` (`Dispatchers.Unconfined`) | ~260 ns       | No thread hop                             |
-| `postSuspend` (`Dispatchers.Default`)    | ~17 µs        | Thread hop dominates                      |
+| `postSuspend` (`Dispatchers.Default`)    | ~17 us        | Thread hop dominates                      |
 | `postSuspend` (default, no hop)          | ~same as post | EmptyCoroutineContext, no thread switch   |
-| `nextEvent` end-to-end                   | ~164 µs       | Coroutine scheduler round-trip            |
+| `nextEvent` end-to-end                   | ~164 us       | Coroutine scheduler round-trip            |
 | `TypedEventBus` adapter overhead         | ~0%           | Delegation inlined by JIT                 |
 
 To run benchmarks:

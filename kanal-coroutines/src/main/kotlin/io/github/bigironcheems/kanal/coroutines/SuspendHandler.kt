@@ -96,7 +96,7 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
  * [scope] to control handler coroutine lifecycle:
  *
  * ```kotlin
- * // Production -- tied to component lifecycle
+ * // Production - tied to component lifecycle
  * val sub = bus.suspendHandler<PlayerJumpEvent>(scope = viewModelScope) { e ->
  *     delay(100)
  *     println(e.player)
@@ -107,7 +107,7 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
  * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
  * @param behaviour Controls concurrency when events arrive faster than handlers complete.
  * @param scope     Coroutine scope for handler execution. Defaults to an internal
- *                  unmanaged scope -- prefer supplying an explicit scope in production.
+ *                  unmanaged scope - prefer supplying an explicit scope in production.
  * @param handler   The suspend function invoked for each matching event.
  */
 public inline fun <reified T : Event> TypedEventBus<in T>.suspendHandler(

@@ -57,14 +57,14 @@ public class AsyncExample {
             IO.println("[high async] packet on " + Thread.currentThread().getName());
         }
 
-        // Runs after the HIGH async handler completes — sees its mutations.
+        // Runs after the HIGH async handler completes - sees its mutations.
         @Subscribe(priority = Priority.LOW)
         public void onPacketLow(PacketEvent e) {
             IO.println("[low sync] runs after high async finishes");
         }
     }
 
-    // 1. Basic postAsync — fire and forget vs awaiting completion
+    // 1. Basic postAsync - fire and forget vs awaiting completion
 
     static void basicPostAsync() {
         EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
@@ -72,7 +72,7 @@ public class AsyncExample {
                 e -> IO.println("[async] received " + e.bytes.length + " bytes on "
                         + Thread.currentThread().getName()));
 
-        // Fire and forget — handler runs on a virtual thread.
+        // Fire and forget - handler runs on a virtual thread.
         CompletableFuture<PacketEvent> future = bus.postAsync(new PacketEvent(new byte[128]));
 
         // Chain follow-up work without blocking.
@@ -103,7 +103,7 @@ public class AsyncExample {
         IO.println("post returned after all handlers finished");
     }
 
-    // 4. Mixed sync + async — priority and mutation visibility
+    // 4. Mixed sync + async - priority and mutation visibility
     //
     // A lower-priority sync handler always observes mutations from higher-priority
     // async handlers; the chain drains before each sync step executes.
@@ -116,7 +116,7 @@ public class AsyncExample {
             IO.println("[HIGH async] doubled to " + e.getValue());
         });
         bus.subscribe(DamageEvent.class, Priority.LOW, e -> {
-            // Runs after HIGH async completes — sees the doubled value.
+            // Runs after HIGH async completes - sees the doubled value.
             IO.println("[LOW sync] final value: " + e.getValue());
         });
 

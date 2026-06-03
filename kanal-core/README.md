@@ -20,24 +20,24 @@ Replace `$VERSION` with the latest version shown in the [root README](../README.
 
 ## Features
 
-- **Zero reflection on the hot path** — handlers are compiled to `Consumer<Event>` via `LambdaMetafactory` at
+- **Zero reflection on the hot path** - handlers are compiled to `Consumer<Event>` via `LambdaMetafactory` at
   subscription time; dispatch is a plain virtual call.
-- **Supertype dispatch** — posting a `SubEvent` also reaches handlers registered for any superclass or interface in its
+- **Supertype dispatch** - posting a `SubEvent` also reaches handlers registered for any superclass or interface in its
   hierarchy.
-- **Priority ordering** — `Priority.HIGHEST` through `Priority.LOWEST`; equal-priority handlers fire in subscription
+- **Priority ordering** - `Priority.HIGHEST` through `Priority.LOWEST`; equal-priority handlers fire in subscription
   order.
-- **Cancellable events** — implement `Cancellable`; dispatch short-circuits as soon as any handler cancels.
-- **Modifiable events** — implement `Modifiable<T>`; handlers read and replace a typed value during dispatch.
-- **Wildcard listeners** — `bus.subscribeAll { e -> }` fires for every posted event, interleaved with typed handlers by
+- **Cancellable events** - implement `Cancellable`; dispatch short-circuits as soon as any handler cancels.
+- **Modifiable events** - implement `Modifiable<T>`; handlers read and replace a typed value during dispatch.
+- **Wildcard listeners** - `bus.subscribeAll { e -> }` fires for every posted event, interleaved with typed handlers by
   priority.
-- **Typed bus** — `bus.typed<NetworkEvent>()` returns a `TypedEventBus<NetworkEvent>` that restricts `post` and
+- **Typed bus** - `bus.typed<NetworkEvent>()` returns a `TypedEventBus<NetworkEvent>` that restricts `post` and
   `subscribe` to subtypes of `NetworkEvent` at compile time.
-- **Lambda subscribe** — `bus.subscribe<MyEvent> { e -> }` returns a `Subscription` token for removal; no annotation
+- **Lambda subscribe** - `bus.subscribe<MyEvent> { e -> }` returns a `Subscription` token for removal; no annotation
   needed.
-- **Java-friendly** — all public API accessible from Java; `EventBus.create()`,
+- **Java-friendly** - all public API accessible from Java; `EventBus.create()`,
   `TypedEventBusFactory.typed(bus, MyEvent.class)`.
-- **Thread-safe** — `CopyOnWriteArrayList` per event type; safe for concurrent read / occasional write patterns.
-- **Async dispatch** — opt-in per-handler async execution via `@Subscribe(async = true)` or
+- **Thread-safe** - `CopyOnWriteArrayList` per event type; safe for concurrent read / occasional write patterns.
+- **Async dispatch** - opt-in per-handler async execution via `@Subscribe(async = true)` or
   `bus.subscribe<MyEvent>(async = true) { }`. An `Executor` (e.g. virtual threads) is supplied at bus construction time.
   `bus.postAsync(event)` returns a `CompletableFuture<T>` completing after all handlers finish.
 
@@ -91,7 +91,7 @@ val sub2 = bus.subscribe<PlayerJumpEvent>(Priority.HIGH) { e -> handle(e) }
 val sub3 = bus.subscribe<PacketReceived>(async = true) { e -> handle(e) }
 
 sub.cancel()        // removes this handler
-sub.use { }         // AutoCloseable — cancels on block exit
+sub.use { }         // AutoCloseable - cancels on block exit
 ```
 
 ### Cancellable events
@@ -159,7 +159,7 @@ val bus = EventBus(Executors.newVirtualThreadPerTaskExecutor())
 // Per-handler async flag
 bus.subscribe<PacketReceived>(async = true) { e -> handle(e) }
 
-// postAsync — returns CompletableFuture
+// postAsync - returns CompletableFuture
 val future = bus.postAsync(PacketReceived(bytes))
 future.thenAccept { e -> println("done: $e") }
 future.join() // or block until complete
@@ -168,7 +168,7 @@ future.join() // or block until complete
 **Guarantees:**
 
 - Priority ordering preserved across sync and async handlers.
-- Mutation visibility guaranteed — lower-priority sync handlers observe mutations from higher-priority async handlers.
+- Mutation visibility guaranteed - lower-priority sync handlers observe mutations from higher-priority async handlers.
 - Cancellation is automatically thread-safe across async handlers.
 - `postAsync` never completes exceptionally due to handler errors; exceptions route to `exceptionHandler`.
 

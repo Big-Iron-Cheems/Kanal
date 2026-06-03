@@ -29,7 +29,7 @@ class AsyncDispatchTest {
         override var isCancelled: Boolean = false
     }
 
-    //  1. postAsync — basic completion
+    //  1. postAsync - basic completion
 
     @Test
     fun `postAsync completes with the event instance`() {
@@ -57,7 +57,7 @@ class AsyncDispatchTest {
         assertTrue(called)
     }
 
-    //  2. @Subscribe(async = true) — annotation-based async handlers
+    //  2. @Subscribe(async = true) - annotation-based async handlers
 
     @Test
     fun `annotated async handler is invoked via postAsync`() {
@@ -286,7 +286,7 @@ class AsyncDispatchTest {
         assertEquals(1, count.get())
     }
 
-    //  7. postAsync — exception handling
+    //  7. postAsync - exception handling
 
     @Test
     fun `postAsync does not complete exceptionally when handler throws`() {

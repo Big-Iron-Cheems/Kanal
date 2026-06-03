@@ -13,7 +13,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Demonstrates [nextEvent] and [nextEventOrNull] -- suspending until a single
+ * Demonstrates [nextEvent] and [nextEventOrNull] - suspending until a single
  * matching event arrives.
  *
  * These examples use [kotlinx.coroutines.Dispatchers.Unconfined] when launching
@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
  * In a real coroutine scope that is already running, no special dispatcher is needed.
  */
 
-// 1. Basic nextEvent -- suspend until the first matching event
+// 1. Basic nextEvent - suspend until the first matching event
 
 fun nextEventBasic() = runBlocking {
     val bus = EventBus()
@@ -52,7 +52,7 @@ fun nextEventIgnoresOtherTypes() = runBlocking {
     job.join()
 }
 
-// 3. nextEvent with predicate -- skip events that do not match
+// 3. nextEvent with predicate - skip events that do not match
 
 fun nextEventWithPredicate() = runBlocking {
     val bus = EventBus()
@@ -87,7 +87,7 @@ fun nextEventWithPriority() = runBlocking {
     println("Order: $order")
 }
 
-// 5. nextEvent unregisters after first match -- subsequent events not received
+// 5. nextEvent unregisters after first match - subsequent events not received
 
 fun nextEventSingleShot() = runBlocking {
     val bus = EventBus()
@@ -106,7 +106,7 @@ fun nextEventSingleShot() = runBlocking {
     println("Count after second post: $count")
 }
 
-// 6. nextEventOrNull -- returns null on timeout
+// 6. nextEventOrNull - returns null on timeout
 
 fun nextEventOrNullTimeout() = runBlocking {
     val bus = EventBus()
@@ -115,11 +115,11 @@ fun nextEventOrNullTimeout() = runBlocking {
     if (event != null) {
         println("Got: ${event.player}")
     } else {
-        println("Timed out -- no event arrived")
+        println("Timed out - no event arrived")
     }
 }
 
-// 7. nextEventOrNull -- returns event when received before timeout
+// 7. nextEventOrNull - returns event when received before timeout
 
 fun nextEventOrNullHit() = runBlocking {
     val bus = EventBus()
@@ -148,7 +148,7 @@ fun nextEventOrNullWithPredicate() = runBlocking {
     job.join()
 }
 
-// 9. TypedEventBus -- nextEvent on a typed bus view
+// 9. TypedEventBus - nextEvent on a typed bus view
 
 fun nextEventTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()
@@ -163,7 +163,7 @@ fun nextEventTypedBus() = runBlocking {
     job.join()
 }
 
-// 10. TypedEventBus -- nextEventOrNull with timeout
+// 10. TypedEventBus - nextEventOrNull with timeout
 
 fun nextEventOrNullTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()

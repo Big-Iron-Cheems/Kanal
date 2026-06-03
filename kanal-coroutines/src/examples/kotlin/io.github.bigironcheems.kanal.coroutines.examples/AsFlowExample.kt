@@ -11,12 +11,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * Demonstrates [asFlow] -- exposing an [EventBus] event type as a Kotlin Flow.
+ * Demonstrates [asFlow] - exposing an [EventBus] event type as a Kotlin Flow.
  *
  * ### When to use asFlow vs suspendHandler
  * Use [asFlow] when you need Flow operators (filter, map, take, merge, etc.).
  * Use [io.github.bigironcheems.kanal.coroutines.suspendHandler] when you only
- * need to handle each event with suspend logic -- it registers synchronously and
+ * need to handle each event with suspend logic - it registers synchronously and
  * has no subscription timing concerns.
  *
  * ### Subscription timing
@@ -28,7 +28,7 @@ import kotlinx.coroutines.runBlocking
  * dispatcher is needed.
  */
 
-// 1. Basic collection -- collect N events then terminate via take()
+// 1. Basic collection - collect N events then terminate via take()
 // Uses Dispatchers.Unconfined to guarantee subscription is registered before posting
 // in this runBlocking example context.
 
@@ -46,7 +46,7 @@ fun flowBasicCollection() = runBlocking {
     job.join()
 }
 
-// 2. Flow operators -- filter, take, toList
+// 2. Flow operators - filter, take, toList
 
 fun flowWithFlowOperators() = runBlocking {
     val bus = EventBus()
@@ -61,11 +61,11 @@ fun flowWithFlowOperators() = runBlocking {
 
     bus.post(PlayerJumpEvent("Steve"))  // collected
     bus.post(PlayerJumpEvent("Alex"))   // filtered out
-    bus.post(PlayerJumpEvent("Sam"))    // collected -- take(2) completes
+    bus.post(PlayerJumpEvent("Sam"))    // collected - take(2) completes
     job.join()
 }
 
-// 3. Priority -- flow collector at HIGH fires before NORMAL subscriber
+// 3. Priority - flow collector at HIGH fires before NORMAL subscriber
 
 fun flowWithPriority() = runBlocking {
     val bus = EventBus()
@@ -85,7 +85,7 @@ fun flowWithPriority() = runBlocking {
     println("Order: $order") // [flow-high, normal]
 }
 
-// 4. Subscription lifetime -- handler registered on collect, removed on cancellation
+// 4. Subscription lifetime - handler registered on collect, removed on cancellation
 
 fun flowSubscriptionLifetime() = runBlocking {
     val bus = EventBus()
@@ -99,7 +99,7 @@ fun flowSubscriptionLifetime() = runBlocking {
     println("Listening: ${bus.isListening<PlayerJumpEvent>()}") // false
 }
 
-// 5. TypedEventBus -- asFlow on a typed bus view
+// 5. TypedEventBus - asFlow on a typed bus view
 
 fun flowTypedBus() = runBlocking {
     val networkBus = EventBus().typed<NetworkEvent>()
@@ -110,12 +110,12 @@ fun flowTypedBus() = runBlocking {
             .collect { e -> println("Received ${e.bytes.size} bytes") }
     }
 
-    networkBus.post(ConnectionLost("timeout")) // not collected -- different type
+    networkBus.post(ConnectionLost("timeout")) // not collected - different type
     networkBus.post(PacketReceived(ByteArray(128)))
     job.join()
 }
 
-// 6. Collecting into a list -- take N events and terminate
+// 6. Collecting into a list - take N events and terminate
 
 fun flowCollectIntoList() = runBlocking {
     val bus = EventBus()

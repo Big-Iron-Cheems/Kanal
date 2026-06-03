@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.callbackFlow
  * ### When to use asFlow vs suspendHandler
  * Use [asFlow] when you need Flow operators (filter, map, take, merge, etc.).
  * Use [suspendHandler] when you only need to handle each event with suspend logic
- * -- it registers synchronously and has no subscription timing concerns.
+ * - it registers synchronously and has no subscription timing concerns.
  *
  * ### Subscription timing
  * The subscription is registered inside the collector coroutine body. In a tight
@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.callbackFlow
  * val job = launch(Dispatchers.Unconfined) {
  *     bus.asFlow<MyEvent>().take(N).collect { e -> handle(e) }
  * }
- * bus.post(MyEvent()) // safe -- subscription guaranteed registered
+ * bus.post(MyEvent()) // safe - subscription guaranteed registered
  * job.join()
  * ```
  *

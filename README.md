@@ -12,8 +12,8 @@ A **Kotlin-first, Java-compatible** event-handler library for the JVM.
 
 | Module                                           | Description                                                                                                                                  | Java compatible |
 |--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|-----------------|
-| [`kanal-core`](kanal-core/README.md)             | Core event bus — annotation and lambda subscribers, priority dispatch, cancellable and modifiable events, supertype dispatch, async handlers | ✅               |
-| [`kanal-coroutines`](kanal-coroutines/README.md) | Coroutines extensions — `asFlow`, `postSuspend`, `suspendHandler`, `nextEvent`                                                               | Kotlin only     |
+| [`kanal-core`](kanal-core/README.md)             | Core event bus - annotation and lambda subscribers, priority dispatch, cancellable and modifiable events, supertype dispatch, async handlers | Yes             |
+| [`kanal-coroutines`](kanal-coroutines/README.md) | Coroutines extensions - `asFlow`, `postSuspend`, `suspendHandler`, `nextEvent`                                                               | Kotlin only     |
 
 ## Installation
 
