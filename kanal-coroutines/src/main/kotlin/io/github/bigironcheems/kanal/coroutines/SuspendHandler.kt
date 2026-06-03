@@ -31,9 +31,8 @@ public sealed interface SuspendHandlerBehaviour {
 /**
  * Registers a suspend [handler] for event type [T] and returns a [Subscription] token.
  *
- * A [CoroutineScope] backed by a [SupervisorJob] and [Dispatchers.Default] is created
- * internally. Cancelling the returned [Subscription] cancels the scope and all
- * running handler coroutines.
+ * The subscription is registered synchronously before returning. Events can be posted
+ * immediately after this call returns without any timing concerns.
  *
  * ```kotlin
  * val sub = bus.suspendHandler<PlayerJumpEvent> { e ->
@@ -43,35 +42,42 @@ public sealed interface SuspendHandlerBehaviour {
  * sub.cancel()
  * ```
  *
- * @param priority        Dispatch priority; defaults to [Priority.NORMAL].
- * @param behaviour       Controls concurrency when events arrive faster than handlers complete.
- * @param handler         The suspend function invoked for each matching event.
+ * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
+ * @param behaviour Controls concurrency when events arrive faster than handlers complete.
+ * @param scope     Coroutine scope for handler execution. When `null` (default), an internal
+ *                  scope is created and cancelled when the subscription is cancelled.
+ *                  When an explicit scope is provided, it is used but never cancelled by
+ *                  this subscription - the caller retains full lifecycle ownership.
+ *                  Prefer providing an explicit scope in production code.
+ * @param handler   The suspend function invoked for each matching event.
  */
 public inline fun <reified T : Event> EventBus.suspendHandler(
     priority: Int = Priority.NORMAL,
     behaviour: SuspendHandlerBehaviour = SuspendHandlerBehaviour.Parallel,
-    scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+    scope: CoroutineScope? = null,
     crossinline handler: suspend (T) -> Unit
 ): Subscription {
+    val effectiveScope = scope ?: CoroutineScope(Dispatchers.Default + SupervisorJob())
+    val ownsScope = scope == null
     val activeJob = AtomicReference<Job?>(null)
 
     val sub = subscribe<T>(priority) { event ->
         when (behaviour) {
             SuspendHandlerBehaviour.Parallel -> {
-                scope.launch { handler(event) }
+                effectiveScope.launch { handler(event) }
             }
 
             SuspendHandlerBehaviour.DiscardIfBusy -> {
                 val current = activeJob.get()
                 if (current?.isActive != true) {
-                    val job = scope.launch { handler(event) }
+                    val job = effectiveScope.launch { handler(event) }
                     activeJob.set(job)
                 }
             }
 
             SuspendHandlerBehaviour.ReplaceLatest -> {
                 activeJob.getAndSet(null)?.cancel()
-                val job = scope.launch(start = CoroutineStart.DEFAULT) { handler(event) }
+                val job = effectiveScope.launch(start = CoroutineStart.DEFAULT) { handler(event) }
                 activeJob.set(job)
             }
         }
@@ -80,39 +86,38 @@ public inline fun <reified T : Event> EventBus.suspendHandler(
     return object : Subscription {
         override fun cancel() {
             sub.cancel()
-            scope.coroutineContext[Job]?.cancel()
+            if (ownsScope) effectiveScope.coroutineContext[Job]?.cancel()
         }
     }
 }
 
 /**
- * Registers a suspend [handler] for event type [T] and returns a [Subscription] token.
+ * Registers a suspend [handler] for event type [T] on this [TypedEventBus]
+ * and returns a [Subscription] token.
  *
- * The subscription is registered synchronously before returning. Events can be posted
- * immediately after this call returns without any timing concerns.
- *
- * A [CoroutineScope] backed by a [SupervisorJob] and [Dispatchers.Default] is created
- * internally when no scope is provided. In production code always supply an explicit
- * [scope] to control handler coroutine lifecycle:
+ * Delegates to [EventBus.suspendHandler] on the underlying bus.
  *
  * ```kotlin
- * // Production - tied to component lifecycle
- * val sub = bus.suspendHandler<PlayerJumpEvent>(scope = viewModelScope) { e ->
+ * val networkBus = EventBus().typed<NetworkEvent>()
+ * val sub = networkBus.suspendHandler<PacketReceived>(scope = viewModelScope) { e ->
  *     delay(100)
- *     println(e.player)
+ *     handle(e)
  * }
  * sub.cancel()
  * ```
  *
  * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
  * @param behaviour Controls concurrency when events arrive faster than handlers complete.
- * @param scope     Coroutine scope for handler execution. Defaults to an internal
- *                  unmanaged scope - prefer supplying an explicit scope in production.
+ * @param scope     Coroutine scope for handler execution. When `null` (default), an internal
+ *                  scope is created and cancelled when the subscription is cancelled.
+ *                  When an explicit scope is provided, it is used but never cancelled by
+ *                  this subscription - the caller retains full lifecycle ownership.
+ *                  Prefer providing an explicit scope in production code.
  * @param handler   The suspend function invoked for each matching event.
  */
 public inline fun <reified T : Event> TypedEventBus<in T>.suspendHandler(
     priority: Int = Priority.NORMAL,
     behaviour: SuspendHandlerBehaviour = SuspendHandlerBehaviour.Parallel,
-    scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+    scope: CoroutineScope? = null,
     crossinline handler: suspend (T) -> Unit
 ): Subscription = delegate.suspendHandler<T>(priority, behaviour, scope, handler)

@@ -3,6 +3,7 @@ package io.github.bigironcheems.kanal.coroutines
 import io.github.bigironcheems.kanal.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 
@@ -19,7 +20,7 @@ import kotlin.time.Duration
  *
  * ```kotlin
  * val packet = bus.nextEvent<PacketReceived>()
- * val packet = bus.nextEvent<PacketReceived> { it.bytes > 100 }
+ * val packet = bus.nextEvent<PacketReceived> { it.bytes.size > 100 }
  * ```
  *
  * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
@@ -29,10 +30,10 @@ public suspend inline fun <reified T : Event> EventBus.nextEvent(
     priority: Int = Priority.NORMAL,
     crossinline predicate: (T) -> Boolean = { true }
 ): T = suspendCancellableCoroutine { cont ->
+    val claimed = AtomicBoolean(false)
     val sub = subscribe<T>(priority) { event ->
         if (!predicate(event)) return@subscribe
-        if (!cont.isActive) return@subscribe
-        cont.resume(event)
+        if (claimed.compareAndSet(false, true)) cont.resume(event)
     }
     cont.invokeOnCancellation { sub.cancel() }
 }
@@ -45,7 +46,7 @@ public suspend inline fun <reified T : Event> EventBus.nextEvent(
  *
  * ```kotlin
  * val packet = bus.nextEventOrNull<PacketReceived>(5.seconds)
- * val packet = bus.nextEventOrNull<PacketReceived>(5.seconds) { it.bytes > 100 }
+ * val packet = bus.nextEventOrNull<PacketReceived>(5.seconds) { it.bytes.size > 100 }
  * ```
  *
  * @param timeout   Maximum duration to wait for a matching event.
