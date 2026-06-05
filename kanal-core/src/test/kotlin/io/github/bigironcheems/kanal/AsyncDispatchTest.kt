@@ -1,7 +1,6 @@
 package io.github.bigironcheems.kanal
 
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
