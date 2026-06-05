@@ -47,3 +47,21 @@ concurrenthashmap:
   title: "ConcurrentHashMap - Java SE 25 API"
   author: Oracle
   url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html
+
+kotlinx-coroutines:
+  type: web
+  title: "kotlinx.coroutines"
+  author: JetBrains
+  url: https://github.com/Kotlin/kotlinx.coroutines
+
+callbackflow:
+  type: web
+  title: "callbackFlow - Kotlin coroutines API"
+  author: JetBrains
+  url: https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/callback-flow.html
+
+cancellablecontinuation:
+  type: web
+  title: "CancellableContinuation - Kotlin coroutines API"
+  author: JetBrains
+  url: https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-cancellable-continuation/
