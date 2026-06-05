@@ -56,6 +56,15 @@ bus.post(PlayerJumpEvent("Steve"))
 See the module READMEs for the full API surface, Java usage, async dispatch, coroutines integration, and performance
 data.
 
+## Documentation
+
+The project specification is written in [Typst](https://github.com/typst/typst) under [`docs/`](docs).
+To build the PDF locally, install Typst and run:
+
+```bash
+typst compile docs/kanal.typ docs/kanal.pdf
+```
+
 ## License
 
 Apache 2.0, see [LICENSE](LICENSE).
