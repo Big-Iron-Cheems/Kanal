@@ -204,7 +204,7 @@ Results are written to `kanal-coroutines/build/reports/jmh/results.json`.
 
 `kanal-coroutines` uses [Kotlin ABI validation](https://github.com/Kotlin/binary-compatibility-validator).
 The public API surface is tracked in `api/kanal-coroutines.api`. Any binary-incompatible change
-will fail the build via `./gradlew :kanal-coroutines:checkLegacyAbi`.
+will fail the build via `./gradlew :kanal-coroutines:checkKotlinAbi`.
 
 Internal implementation classes are excluded from the ABI surface and may change between releases.
 

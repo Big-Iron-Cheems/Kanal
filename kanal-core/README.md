@@ -218,7 +218,7 @@ Results are written to `kanal-core/build/reports/jmh/results.json`.
 
 `kanal-core` uses [Kotlin ABI validation](https://github.com/Kotlin/binary-compatibility-validator).
 The public API surface is tracked in `api/kanal-core.api`. Any binary-incompatible change
-will fail the build via `./gradlew :kanal-core:checkLegacyAbi`.
+will fail the build via `./gradlew :kanal-core:checkKotlinAbi`.
 
 Internal implementation classes under `io.github.bigironcheems.kanal.internal` are excluded
 from the ABI surface and may change between releases.
