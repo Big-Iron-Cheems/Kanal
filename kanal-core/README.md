@@ -40,6 +40,7 @@ Replace `$VERSION` with the latest version shown in the [root README](../README.
 - **Async dispatch** - opt-in per-handler async execution via `@Subscribe(async = true)` or
   `bus.subscribe<MyEvent>(async = true) { }`. An `Executor` (e.g. virtual threads) is supplied at bus construction time.
   `bus.postAsync(event)` returns a `CompletableFuture<T>` completing after all handlers finish.
+- **ABI stable** - public API surface tracked via binary compatibility validation; breaking changes fail the build.
 
 ## Quick start
 
@@ -213,15 +214,6 @@ To run benchmarks:
 ```
 
 Results are written to `kanal-core/build/reports/jmh/results.json`.
-
-## ABI stability
-
-`kanal-core` uses [Kotlin ABI validation](https://github.com/Kotlin/binary-compatibility-validator).
-The public API surface is tracked in `api/kanal-core.api`. Any binary-incompatible change
-will fail the build via `./gradlew :kanal-core:checkKotlinAbi`.
-
-Internal implementation classes under `io.github.bigironcheems.kanal.internal` are excluded
-from the ABI surface and may change between releases.
 
 ## Examples
 
