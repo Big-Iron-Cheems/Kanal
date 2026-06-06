@@ -22,11 +22,12 @@ jobs:
           java-version: 25
           cache: gradle
           cache-dependency-path: |
-            build.gradle.kts
+            kanal-core/build.gradle.kts
+            kanal-coroutines/build.gradle.kts
             gradle/libs.versions.toml
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Build and check
         run: ./gradlew check

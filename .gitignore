@@ -39,3 +39,8 @@ replay_*.log
 
 *.diff
 *.patch
+
+# typst compiled output
+
+docs/*.pdf
+

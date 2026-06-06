@@ -1,0 +1,67 @@
+lambdametafactory:
+  type: web
+  title: "LambdaMetafactory - Java SE 25 API"
+  author: Oracle
+  url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/invoke/LambdaMetafactory.html
+
+methodhandles-lookup:
+  type: web
+  title: "MethodHandles.Lookup - Java SE 25 API"
+  author: Oracle
+  url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/invoke/MethodHandles.Lookup.html
+
+megamorphic:
+  type: web
+  title: "JVM Anatomy Quark #16: Megamorphic Virtual Calls"
+  author: Shipilev, Aleksey
+  date: 2017
+  url: https://shipilev.net/jvm/anatomy-quarks/16-megamorphic-virtual-calls/
+
+cowal:
+  type: web
+  title: "CopyOnWriteArrayList - Java SE 25 API"
+  author: Oracle
+  url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CopyOnWriteArrayList.html
+
+completablefuture:
+  type: web
+  title: "CompletableFuture - Java SE 25 API"
+  author: Oracle
+  url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html
+
+jep444:
+  type: web
+  title: "JEP 444: Virtual Threads"
+  author: OpenJDK
+  date: 2023
+  url: https://openjdk.org/jeps/444
+
+jmh:
+  type: web
+  title: "JMH - Java Microbenchmark Harness"
+  author: OpenJDK
+  url: https://github.com/openjdk/jmh
+
+concurrenthashmap:
+  type: web
+  title: "ConcurrentHashMap - Java SE 25 API"
+  author: Oracle
+  url: https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html
+
+kotlinx-coroutines:
+  type: web
+  title: "kotlinx.coroutines"
+  author: JetBrains
+  url: https://github.com/Kotlin/kotlinx.coroutines
+
+callbackflow:
+  type: web
+  title: "callbackFlow - Kotlin coroutines API"
+  author: JetBrains
+  url: https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/callback-flow.html
+
+cancellablecontinuation:
+  type: web
+  title: "CancellableContinuation - Kotlin coroutines API"
+  author: JetBrains
+  url: https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-cancellable-continuation/

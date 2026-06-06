@@ -1,0 +1,29 @@
+public final class io/github/bigironcheems/kanal/coroutines/EventBusSuspendKt {
+	public static final fun postSuspend (Lio/github/bigironcheems/kanal/EventBus;Lio/github/bigironcheems/kanal/Event;Lkotlin/coroutines/CoroutineContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun postSuspend$default (Lio/github/bigironcheems/kanal/EventBus;Lio/github/bigironcheems/kanal/Event;Lkotlin/coroutines/CoroutineContext;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface class io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour {
+}
+
+public final class io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$DiscardIfBusy : io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour {
+	public static final field INSTANCE Lio/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$DiscardIfBusy;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$Parallel : io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour {
+	public static final field INSTANCE Lio/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$Parallel;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$ReplaceLatest : io/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour {
+	public static final field INSTANCE Lio/github/bigironcheems/kanal/coroutines/SuspendHandlerBehaviour$ReplaceLatest;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
