@@ -18,7 +18,7 @@ dependencies {
     jmhAnnotationProcessor(libs.jmh.annprocess)
 }
 
-val examples: SourceSet by sourceSets.creating {
+val examples = sourceSets.create("examples") {
     kotlin.srcDir("src/examples/kotlin")
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
