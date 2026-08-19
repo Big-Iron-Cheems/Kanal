@@ -313,6 +313,22 @@ class EventBusTest {
         assertTrue(secondCalled, "Dispatch should continue after a handler exception")
     }
 
+    @Test
+    fun `exceptionHandler throwing does not propagate out of post`() {
+        // Regression test: a misbehaving exceptionHandler must not violate the
+        // "handler exceptions never propagate out of post" contract.
+        val bus = EventBus { throw IllegalStateException("handler for the handler blew up") }
+        bus.subscribe(object {
+            @Subscribe
+            fun on(e: SimpleEvent) {
+                throw RuntimeException("boom")
+            }
+        })
+
+        val event = bus.post(SimpleEvent())
+        assertNotNull(event)
+    }
+
     // 9. Supertype dispatch
 
     open class BaseEvent : Event

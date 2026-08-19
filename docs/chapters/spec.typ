@@ -49,6 +49,13 @@ type, handler count, or async configuration.
   An exception thrown inside a handler is routed to the bus's `exceptionHandler`.
   It does not propagate out of `post`, does not prevent remaining handlers from
   running, and does not affect the return value of `post`.
+
+  If `exceptionHandler` itself throws while handling a handler's exception, the
+  secondary exception is caught internally and printed to stderr. It is *not*
+  routed back through `exceptionHandler` recursively, does not propagate out of
+  `post` or `postAsync`, and does not prevent remaining handlers from running --
+  the same guarantee applies transitively. See @edge-exceptionhandler-failure
+  for the practical implication.
 ] <d5>
 
 #contract(id: "D6", title: "Return identity.")[

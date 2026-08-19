@@ -160,3 +160,27 @@ progress.
 
 This is the correct behaviour for concurrent data structures, but can be surprising
 when shutting down a component that uses the bus.
+
+== `exceptionHandler` failure is a last-resort stderr print, not a second callback <edge-exceptionhandler-failure>
+
+If `exceptionHandler` itself throws while handling a handler's exception, the
+secondary exception is caught internally by the bus and printed to stderr via
+`Throwable.printStackTrace()`. It is not routed back through `exceptionHandler`,
+does not propagate out of `post`/`postAsync`, and does not prevent remaining
+handlers in the dispatch list from running.
+
+#warn(title: "A misbehaving exceptionHandler is silently reduced to a stderr print.")[
+  If your `exceptionHandler` itself throws -- for example, if it forwards to a
+  logger that is itself failing, or does I/O that can throw -- you will not see
+  that failure through your normal error-reporting path, only through raw stderr
+  output with no context beyond the stack trace itself.
+
+  This is intentional: there is no further fallback available once
+  `exceptionHandler` has already failed once, and D5's "never propagates"
+  guarantee must still hold even in this doubly-exceptional case.
+
+  Practical implication: if `exceptionHandler` wraps a logger or any other
+  operation that can throw, wrap that call defensively (its own try/catch)
+  rather than relying on Kanal's secondary fallback for visibility --
+  the fallback exists to preserve D5, not to be a reliable diagnostic channel.
+]

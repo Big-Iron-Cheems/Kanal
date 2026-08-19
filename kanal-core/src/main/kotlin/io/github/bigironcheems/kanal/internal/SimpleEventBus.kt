@@ -31,7 +31,7 @@ import java.util.function.Consumer
  *
  * ## Data structures
  *
- * - `listeners: HashMap<Class<*>, CopyOnWriteArrayList<ListenerEntry>>`; one sorted list per
+ * - `listeners: ConcurrentHashMap<Class<*>, CopyOnWriteArrayList<ListenerEntry>>`; one sorted list per
  *   *registered* event type. COWAL is safe for the concurrent read (post) / occasional write
  *   (subscribe/unsubscribe) pattern. Entries are kept in descending priority order.
  *
@@ -132,7 +132,7 @@ internal class SimpleEventBus(
     //  State
 
     // Map from event Class -> sorted list of directly-registered listeners.
-    private val listeners = HashMap<Class<*>, CopyOnWriteArrayList<ListenerEntry>>()
+    private val listeners = ConcurrentHashMap<Class<*>, CopyOnWriteArrayList<ListenerEntry>>()
 
     /**
      * Wildcard listeners; fire for **every** posted event regardless of type.
@@ -358,10 +358,14 @@ internal class SimpleEventBus(
         var hasAsyncInChain = false
 
         for (entry in entries) {
-            // This check is only effective for the leading sync prefix (before the first async
-            // step has been submitted). Once hasAsyncInChain is true, no async step has actually
-            // executed yet. Correctness for the async portion is handled inside chainAsync/chainSync.
-            if (!hasAsyncInChain && guard?.isCancelled == true) break
+            // Sync the guard from the event before every check, not just inside chainAsync/chainSync.
+            // Handlers invoked directly in the leading sync prefix (the `else` branch below)
+            // write to the event directly and never touch the guard on their own.
+            // Before the first async submission, all handlers are invoked synchronously
+            // and sequentially on the posting thread, so cancellation written by the
+            // preceding handler is observed here before the next handler is considered.
+            guard?.syncFromDelegate()
+            if (guard?.isCancelled == true) break
             chain = when {
                 entry.async -> chainAsync(chain, entry, event, guard, executor).also { hasAsyncInChain = true }
                 hasAsyncInChain -> chainSync(chain, entry, event, guard)
@@ -404,7 +408,14 @@ internal class SimpleEventBus(
         try {
             entry.invoke(entry.instance, event)
         } catch (t: Throwable) {
-            exceptionHandler(t)
+            try {
+                exceptionHandler(t)
+            } catch (secondary: Throwable) {
+                // A misbehaving exceptionHandler must never violate the "never propagates
+                // out of post/postAsync" contract (D5). There is nowhere left to route this,
+                // so it goes to stderr as a last resort rather than escaping or being dropped.
+                secondary.printStackTrace()
+            }
         }
     }
 
