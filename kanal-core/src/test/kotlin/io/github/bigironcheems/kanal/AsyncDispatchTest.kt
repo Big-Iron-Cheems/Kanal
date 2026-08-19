@@ -249,6 +249,28 @@ class AsyncDispatchTest {
         assertFalse(thirdCalled.get(), "No subsequent handler should run after cancellation")
     }
 
+    @Test
+    fun `cancellation in leading sync prefix is observed by later sync handlers before the first async handler`() {
+        // Regression test: AsyncCancellableGuard.syncFromDelegate() must run before
+        // every prefix check, not only inside chainAsync/chainSync -- otherwise a
+        // cancellation performed directly on the event by an earlier sync handler is
+        // invisible to the next sync handler in the same leading prefix.
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val bus = EventBus(executor)
+        var normalCalled = false
+        var asyncCalled = false
+
+        bus.subscribe<CancellableAsyncEvent>(Priority.HIGH) { e -> e.cancel() }
+        bus.subscribe<CancellableAsyncEvent>(Priority.NORMAL) { normalCalled = true }
+        bus.subscribe<CancellableAsyncEvent>(Priority.LOW, async = true) { asyncCalled = true }
+
+        val event = bus.post(CancellableAsyncEvent())
+
+        assertTrue(event.isCancelled)
+        assertFalse(normalCalled, "D4: sync handler ran after cancellation in the same leading prefix")
+        assertFalse(asyncCalled, "async handler after cancellation must not run")
+    }
+
     //  6. Fallback to sync when no executor
 
     @Test
@@ -310,6 +332,85 @@ class AsyncDispatchTest {
         bus.subscribe<SimpleEvent>(async = true) { throw IllegalStateException("oops") }
         bus.post(SimpleEvent()) // must not propagate
         assertEquals(1, errors.size)
+    }
+
+    @Test
+    fun `throwing exceptionHandler does not propagate through sync post despite async handler`() {
+        // Regression test: exceptionHandler(t) itself throwing must not escape invokeEntry.
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val bus = EventBus(executor) { throw IllegalStateException("handler for the handler blew up") }
+            bus.subscribe<SimpleEvent>(async = true) { throw RuntimeException("original handler error") }
+
+            val event = bus.post(SimpleEvent())
+            assertNotNull(event)
+        }
+    }
+
+    @Test
+    fun `throwing exceptionHandler does not make postAsync complete exceptionally`() {
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val bus = EventBus(executor) { throw IllegalStateException("handler for the handler blew up") }
+            bus.subscribe<SimpleEvent>(async = true) { throw RuntimeException("original handler error") }
+
+            val future = bus.postAsync(SimpleEvent())
+            val result = future.get(5, TimeUnit.SECONDS)
+
+            assertFalse(future.isCompletedExceptionally)
+            assertNotNull(result)
+        }
+    }
+
+    @Test
+    fun `exceptionHandler for an async handler runs on the executor thread, not the posting thread`() {
+        // Documents (not a bug): pins down the thread-affinity behavior clarified in EventBus's exceptionHandler KDoc.
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val callingThread = Thread.currentThread()
+            var handlerThread: Thread? = null
+
+            val bus = EventBus(executor) { handlerThread = Thread.currentThread() }
+            bus.subscribe<SimpleEvent>(async = true) { throw RuntimeException("boom") }
+
+            bus.postAsync(SimpleEvent()).join()
+
+            assertNotSame(callingThread, handlerThread)
+        }
+    }
+
+    @Test
+    fun `throwing exceptionHandler does not prevent remaining handlers from running`() {
+        // D5's second clause: handler failure must not prevent remaining handlers,
+        // even when exceptionHandler itself also fails on the first handler's exception.
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val bus = EventBus(executor) { throw IllegalStateException("handler for the handler blew up") }
+            var normalCalled = false
+
+            bus.subscribe<SimpleEvent>(Priority.HIGH, async = true) { throw RuntimeException("boom") }
+            bus.subscribe<SimpleEvent>(Priority.NORMAL, async = true) { normalCalled = true }
+
+            bus.postAsync(SimpleEvent()).get(5, TimeUnit.SECONDS)
+
+            assertTrue(normalCalled, "later handler must still run despite exceptionHandler failing on an earlier one")
+        }
+    }
+
+    @Test
+    fun `cancellation by the second sync handler in the leading prefix still stops the async handler`() {
+        // Converse topology of the sibling test above: cancel from the LATER sync
+        // handler in the prefix rather than the first, confirming syncFromDelegate()
+        // is called on every iteration, not just once at loop entry.
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val bus = EventBus(executor)
+            var asyncCalled = false
+
+            bus.subscribe<CancellableAsyncEvent>(Priority.HIGH) { }
+            bus.subscribe<CancellableAsyncEvent>(Priority.NORMAL) { e -> e.cancel() }
+            bus.subscribe<CancellableAsyncEvent>(Priority.LOW, async = true) { asyncCalled = true }
+
+            val event = bus.post(CancellableAsyncEvent())
+
+            assertTrue(event.isCancelled)
+            assertFalse(asyncCalled)
+        }
     }
 
     //  8. TypedEventBus delegation

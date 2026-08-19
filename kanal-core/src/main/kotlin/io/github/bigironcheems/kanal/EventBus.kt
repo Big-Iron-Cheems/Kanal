@@ -1,7 +1,5 @@
 package io.github.bigironcheems.kanal
 
-import io.github.bigironcheems.kanal.EventBus.Companion.createWithHandler
-import io.github.bigironcheems.kanal.EventBus.Companion.invoke
 import io.github.bigironcheems.kanal.internal.SimpleEventBus
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -59,7 +57,13 @@ public interface EventBus {
          *
          * Kotlin callers use this overload; Java callers use [createWithHandler].
          *
-         * @param exceptionHandler Invoked on the posting thread whenever a handler throws.
+         * @param exceptionHandler Invoked whenever a handler throws.
+         *                         Runs on the posting thread for sync handlers,
+         *                         or on the configured executor's thread for async handlers.
+         *                         If this handler itself throws, the secondary exception is
+         *                         printed to stderr as a last resort; it never propagates
+         *                         out of `post`/`postAsync` and never prevents remaining
+         *                         handlers from running.
          */
         @JvmSynthetic
         public operator fun invoke(exceptionHandler: (Throwable) -> Unit): EventBus =
@@ -69,7 +73,13 @@ public interface EventBus {
          * Creates a new [EventBus] with both an async executor and a custom exception handler.
          *
          * @param asyncExecutor    Executor for async handlers; `null` disables async dispatch.
-         * @param exceptionHandler Invoked on the posting thread whenever a handler throws.
+         * @param exceptionHandler Invoked whenever a handler throws.
+         *                         Runs on the posting thread for sync handlers,
+         *                         or on the configured executor's thread for async handlers.
+         *                         If this handler itself throws, the secondary exception is
+         *                         printed to stderr as a last resort; it never propagates
+         *                         out of `post`/`postAsync` and never prevents remaining
+         *                         handlers from running.
          */
         @JvmSynthetic
         public operator fun invoke(
@@ -84,6 +94,12 @@ public interface EventBus {
          * Kotlin callers use the `EventBus { t -> ... }` lambda overload instead.
          *
          * @param exceptionHandler Invoked whenever a handler throws.
+         *                         Runs on the posting thread for sync handlers,
+         *                         or on the configured executor's thread for async handlers.
+         *                         If this handler itself throws, the secondary exception is
+         *                         printed to stderr as a last resort; it never propagates
+         *                         out of `post`/`postAsync` and never prevents remaining
+         *                         handlers from running.
          */
         @JvmStatic
         @JvmName("createWithHandler")
@@ -98,6 +114,12 @@ public interface EventBus {
          *
          * @param asyncExecutor    Executor for async handlers; `null` disables async dispatch.
          * @param exceptionHandler Invoked whenever a handler throws.
+         *                         Runs on the posting thread for sync handlers,
+         *                         or on the configured executor's thread for async handlers.
+         *                         If this handler itself throws, the secondary exception is
+         *                         printed to stderr as a last resort; it never propagates
+         *                         out of `post`/`postAsync` and never prevents remaining
+         *                         handlers from running.
          */
         @JvmStatic
         @JvmName("createWithHandler")
