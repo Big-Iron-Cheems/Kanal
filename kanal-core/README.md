@@ -120,6 +120,23 @@ bus.subscribe<DamageEvent>(Priority.LOW) { e -> println(e.value) } // sees doubl
 val result = bus.post(DamageEvent(5.0)).value // 10.0
 ```
 
+### Error handling
+
+```kotlin
+val bus = EventBus { throwable ->
+    println("Caught handler error: ${throwable.message}")
+}
+
+bus.subscribe<PlayerJumpEvent> { throw RuntimeException("handler blew up") }
+bus.post(PlayerJumpEvent("Alex"))   // exceptionHandler is called; post() does not throw
+```
+
+- Runs on the posting thread for sync handlers, or on the configured executor's thread for async handlers.
+- Handler exceptions never propagate out of `post`/`postAsync` and never prevent remaining handlers from running.
+- If `exceptionHandler` itself throws, the secondary exception is printed to stderr as a last resort rather than
+  propagating - wrap logging or other fallible operations inside `exceptionHandler` defensively if you need reliable
+  visibility into that failure mode.
+
 ### Wildcard listeners
 
 ```kotlin

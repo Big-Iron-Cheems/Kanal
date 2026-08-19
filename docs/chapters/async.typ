@@ -126,6 +126,14 @@ The rationale for not providing an `async` flag on wildcards is in @design-wildc
 Handler exceptions are caught and passed to `exceptionHandler`. The chain continues to
 the next step. This matches sync dispatch (D5).
 
+`exceptionHandler` itself runs on whichever thread the failing handler was executing
+on: the posting thread for a sync handler, or the configured executor's thread for an
+async handler. Code inside `exceptionHandler` that assumes it always runs on the
+posting thread -- for example, relying on thread-local state such as MDC -- will
+observe the wrong context when the failing handler was async. This is the same class
+of hazard as @edge-wildcard-thread, applied to the error path instead of the dispatch
+path.
+
 Executor rejection is handled differently between `post` and `postAsync`. This
 asymmetry is non-obvious and documented as a dangerous edge in @edge-error-asymmetry.
 The design rationale is in @design-error-asymmetry.

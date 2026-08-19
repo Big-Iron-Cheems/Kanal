@@ -50,7 +50,10 @@ Terms used throughout this manual. For API signatures and usage, see the KDocs.
 
 #gterm([`exceptionHandler`])[
   A `(Throwable) -> Unit` callback configured on the bus. Handler exceptions are always
-  routed here rather than propagating out of `post`. See @d5.
+  routed here rather than propagating out of `post`. Runs on the posting thread for
+  sync handlers, or the configured executor's thread for async handlers (see
+  @async-errors). If this callback itself throws, the secondary exception is printed
+  to stderr rather than propagating; see @edge-exceptionhandler-failure. See @d5.
 ]
 
 #gterm([executor])[
