@@ -44,11 +44,13 @@ class AsyncJavaInteropTest {
 
     @Test
     void createWithExecutor_returnsWorkingAsyncBus() throws Exception {
-        EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
-        AtomicBoolean called = new AtomicBoolean(false);
-        bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> called.set(true));
-        bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
-        assertTrue(called.get());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            EventBus bus = EventBus.create(executor);
+            AtomicBoolean called = new AtomicBoolean(false);
+            bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> called.set(true));
+            bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
+            assertTrue(called.get());
+        }
     }
 
     @Test
@@ -66,64 +68,72 @@ class AsyncJavaInteropTest {
 
     @Test
     void consumerSubscribeAsyncTrue_firesOffCallingThread() throws Exception {
-        EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
-        AtomicReference<Thread> handlerThread = new AtomicReference<>();
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            EventBus bus = EventBus.create(executor);
+            AtomicReference<Thread> handlerThread = new AtomicReference<>();
 
-        bus.subscribe(SimpleEvent.class, Priority.NORMAL, true,
-            e -> handlerThread.set(Thread.currentThread()));
+            bus.subscribe(SimpleEvent.class, Priority.NORMAL, true,
+                e -> handlerThread.set(Thread.currentThread()));
 
-        bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
-        assertNotNull(handlerThread.get());
-        assertNotSame(Thread.currentThread(), handlerThread.get(),
-            "Async handler must run off the calling thread");
+            bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
+            assertNotNull(handlerThread.get());
+            assertNotSame(Thread.currentThread(), handlerThread.get(),
+                "Async handler must run off the calling thread");
+        }
     }
 
     // 3. postAsync returns CompletableFuture; thenAccept fires with event instance
 
     @Test
     void postAsync_completesWithEventInstance() throws Exception {
-        EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
-        SimpleEvent event = new SimpleEvent();
-        CompletableFuture<SimpleEvent> future = bus.postAsync(event);
-        SimpleEvent returned = future.get(5, TimeUnit.SECONDS);
-        assertSame(event, returned, "postAsync must complete with the original event instance");
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            EventBus bus = EventBus.create(executor);
+            SimpleEvent event = new SimpleEvent();
+            CompletableFuture<SimpleEvent> future = bus.postAsync(event);
+            SimpleEvent returned = future.get(5, TimeUnit.SECONDS);
+            assertSame(event, returned, "postAsync must complete with the original event instance");
+        }
     }
 
     @Test
     void postAsync_thenAccept_firesAfterAllHandlers() throws Exception {
-        EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
-        AtomicBoolean handlerRan = new AtomicBoolean(false);
-        AtomicBoolean thenAcceptRan = new AtomicBoolean(false);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            EventBus bus = EventBus.create(executor);
+            AtomicBoolean handlerRan = new AtomicBoolean(false);
+            AtomicBoolean thenAcceptRan = new AtomicBoolean(false);
 
-        bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> handlerRan.set(true));
+            bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> handlerRan.set(true));
 
-        CompletableFuture<Void> downstream = bus.postAsync(new SimpleEvent())
-            .thenAccept(e -> thenAcceptRan.set(true));
-        downstream.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> downstream = bus.postAsync(new SimpleEvent())
+                .thenAccept(e -> thenAcceptRan.set(true));
+            downstream.get(5, TimeUnit.SECONDS);
 
-        assertTrue(handlerRan.get(), "Handler must have run before thenAccept");
-        assertTrue(thenAcceptRan.get(), "thenAccept must fire after all handlers complete");
+            assertTrue(handlerRan.get(), "Handler must have run before thenAccept");
+            assertTrue(thenAcceptRan.get(), "thenAccept must fire after all handlers complete");
+        }
     }
 
     // 4. postAsync never completes exceptionally on handler throw
 
     @Test
     void postAsync_doesNotCompleteExceptionallyOnHandlerThrow() throws Exception {
-        AtomicReference<Throwable> caught = new AtomicReference<>();
-        EventBus bus = EventBus.createWithHandler(
-            Executors.newVirtualThreadPerTaskExecutor(),
-            caught::set
-        );
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            AtomicReference<Throwable> caught = new AtomicReference<>();
+            EventBus bus = EventBus.createWithHandler(
+                executor,
+                caught::set
+            );
 
-        bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> {
-            throw new RuntimeException("handler error");
-        });
+            bus.subscribe(SimpleEvent.class, Priority.NORMAL, true, e -> {
+                throw new RuntimeException("handler error");
+            });
 
-        // Must not throw; exception must be routed to exceptionHandler only.
-        SimpleEvent result = bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
-        assertNotNull(result);
-        assertNotNull(caught.get(), "Exception must be routed to exceptionHandler");
-        assertEquals("handler error", caught.get().getMessage());
+            // Must not throw; exception must be routed to exceptionHandler only.
+            SimpleEvent result = bus.postAsync(new SimpleEvent()).get(5, TimeUnit.SECONDS);
+            assertNotNull(result);
+            assertNotNull(caught.get(), "Exception must be routed to exceptionHandler");
+            assertEquals("handler error", caught.get().getMessage());
+        }
     }
 
     // 5. Async fallback to sync when no executor is configured
@@ -148,17 +158,19 @@ class AsyncJavaInteropTest {
 
     @Test
     void postAsync_cancellationFlushedBackToOriginalEvent() throws Exception {
-        EventBus bus = EventBus.create(Executors.newVirtualThreadPerTaskExecutor());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            EventBus bus = EventBus.create(executor);
 
-        bus.subscribe(CancellableAsyncEvent.class, Priority.HIGH, true,
-            e -> e.cancel());
+            bus.subscribe(CancellableAsyncEvent.class, Priority.HIGH, true,
+                e -> e.cancel());
 
-        CancellableAsyncEvent event = new CancellableAsyncEvent();
-        CancellableAsyncEvent returned = bus.postAsync(event).get(5, TimeUnit.SECONDS);
+            CancellableAsyncEvent event = new CancellableAsyncEvent();
+            CancellableAsyncEvent returned = bus.postAsync(event).get(5, TimeUnit.SECONDS);
 
-        assertSame(event, returned);
-        assertTrue(returned.isCancelled(),
-            "isCancelled must be flushed back to the original event after postAsync completes");
+            assertSame(event, returned);
+            assertTrue(returned.isCancelled(),
+                "isCancelled must be flushed back to the original event after postAsync completes");
+        }
     }
 }
 
