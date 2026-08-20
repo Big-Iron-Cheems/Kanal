@@ -108,14 +108,19 @@ internal class SimpleEventBus(
      *
      * @param priority  Dispatch priority; higher fires first.
      * @param instance  The subscriber object, or `null` for static handlers.
-     * @param owner     The class that declared the method (used for identity / removal).
+     * @param owner     Registration owner for this entry: the subscriber's runtime class for
+     *                  `subscribe(obj)` registrations, or the target class for `subscribeStatic`
+     *                  registrations. Used for identity / removal (see [unsubscribeStatic]).
+     *                  Not necessarily the class that *declared* the handler method -- for an
+     *                  inherited handler this is the subscriber's runtime class, which may be
+     *                  a subclass of the declaring class.
      * @param async     If `true`, this handler should be dispatched on the bus's executor when available.
      * @param invoke    The actual call: `invoke(instance, event)`; instance may be ignored for statics.
      */
     private class ListenerEntry(
         val priority: Int,
-        val instance: Any?,     // null for static handlers
-        val owner: Class<*>,    // declaring class; used for subscribeStatic removal
+        val instance: Any?,
+        val owner: Class<*>,
         val async: Boolean = false,
         val invoke: (Any?, Event) -> Unit
     )
@@ -172,14 +177,13 @@ internal class SimpleEventBus(
     //  EventBus
 
     override fun subscribe(subscriber: Any) {
-        val methods = allDeclaredMethods(subscriber::class.java)
-            .filter { isValidHandler(it, static = false) }
+        val methods = validHandlers(subscriber::class.java, static = false)
         synchronized(lock) {
             val registered = registeredInstanceMethods.getOrPut(subscriber) { mutableSetOf() }
             var changed = false
-            for (method in methods) {
+            for ((method, annotation) in methods) {
                 if (!registered.add(method)) continue
-                register(method, subscriber)
+                register(method, annotation, subscriber, subscriber::class.java)
                 changed = true
             }
             if (changed) dispatchCache.clear()
@@ -187,14 +191,13 @@ internal class SimpleEventBus(
     }
 
     override fun subscribeStatic(klass: Class<*>) {
-        val methods = allDeclaredMethods(klass)
-            .filter { isValidHandler(it, static = true) }
+        val methods = validHandlers(klass, static = true)
         synchronized(lock) {
             val registered = registeredStaticMethods.getOrPut(klass) { mutableSetOf() }
             var changed = false
-            for (method in methods) {
+            for ((method, annotation) in methods) {
                 if (!registered.add(method)) continue
-                register(method, instance = null, ownerOverride = klass)
+                register(method, annotation = annotation, instance = null, owner = klass)
                 changed = true
             }
             if (changed) dispatchCache.clear()
@@ -443,13 +446,10 @@ internal class SimpleEventBus(
      * Called at most once per concrete event type (result is cached in [dispatchCache]).
      */
     private fun buildDispatchList(eventClass: Class<*>): DispatchList {
-        val merged = mutableListOf<ListenerEntry>()
-        for (type in supertypes(eventClass)) {
-            listeners[type]?.let { merged.addAll(it) }
-        }
-        merged.addAll(wildcardListeners)
-        // Stable sort: preserve registration order within equal priorities.
-        merged.sortWith(compareByDescending { it.priority })
+        val merged = supertypes(eventClass)
+            .flatMap { listeners[it].orEmpty() }
+            .plus(wildcardListeners)
+            .sortedByDescending { it.priority }
         return DispatchList(merged, merged.any { it.async })
     }
 
@@ -500,21 +500,19 @@ internal class SimpleEventBus(
      * For instance methods the factory is then called with [instance] to bind the
      * receiver into a `Consumer<Event>`.
      *
-     * @param method        The handler method to register.
-     * @param instance      Subscriber object for instance methods; `null` for static.
-     * @param ownerOverride If non-null, used as the [ListenerEntry.owner] instead of
-     *                      the runtime class of [instance]. Needed for `subscribeStatic`
-     *                      where there is no instance to derive the class from.
+     * Caller must have already validated [method] via [validHandlers].
+     *
+     * @param method     The handler method to register.
+     * @param annotation The [Subscribe] annotation on [method].
+     * @param instance   Subscriber object for instance methods; `null` for static.
+     * @param owner      Registration owner stored on [ListenerEntry.owner]: the subscriber's
+     *                   runtime class for `subscribe(obj)`, or the target class for `subscribeStatic`.
      */
-    private fun register(method: Method, instance: Any?, ownerOverride: Class<*>? = null) {
+    private fun register(method: Method, annotation: Subscribe, instance: Any?, owner: Class<*>) {
         val eventType = method.parameterTypes[0]
-        val annotation = method.getAnnotation(Subscribe::class.java)!!
-        val priority = annotation.priority
-        val async = annotation.async
-        val owner = ownerOverride ?: instance!!::class.java
         val factory = invokerFactoryCache.getOrPut(method) { buildInvokerFactory(method) }
         val invoker = factory(instance)
-        val entry = ListenerEntry(priority, instance, owner, async, invoker)
+        val entry = ListenerEntry(annotation.priority, instance, owner, annotation.async, invoker)
         insertSorted(listeners.getOrPut(eventType) { CopyOnWriteArrayList() }, entry)
     }
 
@@ -635,33 +633,26 @@ internal class SimpleEventBus(
      * are not valid handler sites, and static `@JvmStatic` methods on Kotlin
      * companion objects are already visible on the companion's class itself.
      */
-    private fun allDeclaredMethods(klass: Class<*>): List<Method> {
-        val result = mutableListOf<Method>()
-        // Tracks (name, parameterTypes) of methods already collected from a subclass,
-        // so superclass methods that are overridden are not added again.
-        val seen = HashSet<Pair<String, List<Class<*>>>>()
-        var cursor: Class<*>? = klass
-        while (cursor != null && cursor != Any::class.java) {
-            for (m in cursor.declaredMethods) {
-                if (m.isSynthetic || m.isBridge) continue
-                val sig = m.name to m.parameterTypes.toList()
-                if (seen.add(sig)) result.add(m)
-                // If seen.add returns false, a subclass already has this signature; skip.
-            }
-            cursor = cursor.superclass
-        }
-        return result
-    }
+    private fun allDeclaredMethods(klass: Class<*>): List<Method> =
+        generateSequence(klass) { it.superclass }
+            .takeWhile { it != Any::class.java }
+            .flatMap { it.declaredMethods.asSequence() }
+            .filterNot { it.isSynthetic || it.isBridge }
+            .distinctBy { it.name to it.parameterTypes.toList() }
+            .toList()
 
     /**
-     * Returns `true` if [method] is a `@Subscribe`-annotated handler with the expected
-     * staticness, a void return type, and exactly one [Event]-assignable parameter.
+     * Returns handler methods on [klass] satisfying the requirements of [@Subscribe][Subscribe]:
+     * annotated, correct staticness, Unit/void return, and exactly one [Event]-assignable parameter,
+     * paired with their resolved annotation.
      */
-    private fun isValidHandler(method: Method, static: Boolean): Boolean {
-        if (!method.isAnnotationPresent(Subscribe::class.java)) return false
-        if (Modifier.isStatic(method.modifiers) != static) return false
-        if (method.returnType != Void.TYPE) return false
-        if (method.parameterCount != 1) return false
-        return Event::class.java.isAssignableFrom(method.parameterTypes[0])
-    }
+    private fun validHandlers(klass: Class<*>, static: Boolean): List<Pair<Method, Subscribe>> =
+        allDeclaredMethods(klass).mapNotNull { method ->
+            val annotation = method.getAnnotation(Subscribe::class.java) ?: return@mapNotNull null
+            if (Modifier.isStatic(method.modifiers) != static) return@mapNotNull null
+            if (method.returnType != Void.TYPE) return@mapNotNull null
+            if (method.parameterCount != 1) return@mapNotNull null
+            if (!Event::class.java.isAssignableFrom(method.parameterTypes[0])) return@mapNotNull null
+            method to annotation
+        }
 }
