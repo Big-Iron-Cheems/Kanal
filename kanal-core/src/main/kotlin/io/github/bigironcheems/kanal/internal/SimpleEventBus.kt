@@ -197,7 +197,7 @@ internal class SimpleEventBus(
             var changed = false
             for ((method, annotation) in methods) {
                 if (!registered.add(method)) continue
-                register(method, annotation = annotation, instance = null, owner = klass)
+                register(method, annotation, null, klass)
                 changed = true
             }
             if (changed) dispatchCache.clear()
