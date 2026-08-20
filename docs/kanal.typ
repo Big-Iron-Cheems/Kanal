@@ -3,7 +3,7 @@
 #show: kanal-doc.with(
   title: "Kanal",
   subtitle: "Reference Manual",
-  version: "0.3.1",
+  version: "0.3.2",
 )
 
 #set cite(style: "ieee")

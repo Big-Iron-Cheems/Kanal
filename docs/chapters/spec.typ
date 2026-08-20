@@ -67,8 +67,10 @@ type, handler count, or async configuration.
 
 #contract(id: "R1", title: "Idempotent annotation registration.")[
   Calling `subscribe(obj)` more than once with the same object is a no-op after the
-  first call. Identity is tracked by `System.identityHashCode` combined with the method
-  reference, so two distinct instances of the same class each register their own handlers.
+  first call. Identity is tracked by true object reference (via `IdentityHashMap`),
+  not a hash value, so two distinct instances of the same class always each register
+  their own handlers independently, with no possibility of cross-object interference.
+  See @design-registration-identity for the rationale.
 ] <r1>
 
 #contract(id: "R2", title: "Idempotent subscription cancellation.")[

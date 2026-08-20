@@ -63,6 +63,28 @@ steady-state operation.
 a single boolean to decide whether to build a `CompletableFuture` chain. Buses with no
 async handlers incur zero chain allocation (see @spec-sync-prefix).
 
+== Registration identity: why IdentityHashMap <design-registration-identity>
+
+`subscribe(obj)` and `subscribeStatic(Class)` must be idempotent per object (@r1):
+registering the same instance twice must not duplicate its handlers, while two distinct
+instances of the same class must each register independently. This requires a key that
+uniquely identifies *the object itself*, not a value derived from it.
+
+Already-registered methods are tracked in `IdentityHashMap<Any, MutableSet<Method>>`
+(instance subscribers) and `IdentityHashMap<Class<*>, MutableSet<Method>>` (static
+subscribers). Unlike `HashMap`, `IdentityHashMap` compares keys with `==` (reference
+equality) rather than `equals()`/`hashCode()`. This matters because any hash-derived key
+is a fixed-width value with no uniqueness guarantee; two distinct objects can legally
+share one. A registration scheme keyed on such a hash could conflate two different
+subscribers that collide, silently dropping one's registration or, on `unsubscribe`,
+erasing the wrong object's bookkeeping entry while its handler remains live -- allowing
+a later re-subscribe to register a duplicate handler for it.
+
+`IdentityHashMap` keys on the reference itself, so two distinct objects can never be
+conflated regardless of any hash value. `unsubscribe` and `unsubscribeStatic` remove
+entries by direct key lookup on the same map, so removal is scoped exactly to the object
+being unsubscribed with no possibility of cross-object interference.
+
 == TypedEventBus as a zero-overhead adapter <design-typed>
 
 `TypedEventBus<E>` is a thin interface backed by `TypedEventBusAdapter`, which holds a
