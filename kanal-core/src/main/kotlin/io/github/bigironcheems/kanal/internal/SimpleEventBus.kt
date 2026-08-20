@@ -8,6 +8,7 @@ import java.lang.invoke.MethodType
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -55,16 +56,20 @@ import java.util.function.Consumer
  *   across all bus instances. [LambdaMetafactory] is paid at most once per [Method] per JVM
  *   lifetime. For instance methods the factory is then called per-subscriber to bind the receiver.
  *
- * - `registeredPairs: HashSet<Pair<Int, Method>>`; tracks `(identityHashCode, method)` pairs
- *   to make [subscribe]/[subscribeStatic] idempotent without preventing multiple distinct
- *   instances of the same class from each registering their own handlers.
+ * - `registeredInstanceMethods: IdentityHashMap<Any, MutableSet<Method>>` and
+ *   `registeredStaticMethods: IdentityHashMap<Class<*>, MutableSet<Method>>`; track which
+ *   [Method]s have already been registered per subscriber / static class, keyed by true
+ *   reference identity via [IdentityHashMap]. This makes [subscribe]/[subscribeStatic]
+ *   idempotent per object while allowing multiple distinct instances of the same class to
+ *   each register their own handlers independently; two distinct objects are never treated
+ *   as the same registration key.
  *
  * ## Subscription registration paths
  *
  * | API | Mechanism | Idempotency |
  * |-----|-----------|-------------|
- * | `subscribe(obj)` | reflect scan for `@Subscribe` instance methods | via `registeredPairs` |
- * | `subscribeStatic(Class)` | reflect scan for `@Subscribe` static methods | via `registeredPairs` |
+ * | `subscribe(obj)` | reflect scan for `@Subscribe` instance methods | via `registeredInstanceMethods` |
+ * | `subscribeStatic(Class)` | reflect scan for `@Subscribe` static methods | via `registeredStaticMethods` |
  * | `subscribe(Class, Int, handler)` | direct `ListenerEntry` insertion | returns `Subscription` token |
  * | `subscribeAll(Int, handler)` | direct insertion into `wildcardListeners` | returns `Subscription` token |
  *
@@ -155,8 +160,11 @@ internal class SimpleEventBus(
      */
     private val dispatchCache = ConcurrentHashMap<Class<*>, DispatchList>()
 
-    // Tracks (identityHashCode, method) pairs for idempotent subscribe.
-    private val registeredPairs = HashSet<Pair<Int, Method>>()
+    // Tracks already-registered methods per subscriber instance, keyed by true reference identity.
+    private val registeredInstanceMethods = IdentityHashMap<Any, MutableSet<Method>>()
+
+    // Tracks already-registered methods per static-subscriber class, same identity guarantee.
+    private val registeredStaticMethods = IdentityHashMap<Class<*>, MutableSet<Method>>()
 
     // Guards subscribe / unsubscribe mutations.
     private val lock = Any()
@@ -167,10 +175,10 @@ internal class SimpleEventBus(
         val methods = allDeclaredMethods(subscriber::class.java)
             .filter { isValidHandler(it, static = false) }
         synchronized(lock) {
-            val id = System.identityHashCode(subscriber)
+            val registered = registeredInstanceMethods.getOrPut(subscriber) { mutableSetOf() }
             var changed = false
             for (method in methods) {
-                if (!registeredPairs.add(id to method)) continue
+                if (!registered.add(method)) continue
                 register(method, subscriber)
                 changed = true
             }
@@ -182,9 +190,10 @@ internal class SimpleEventBus(
         val methods = allDeclaredMethods(klass)
             .filter { isValidHandler(it, static = true) }
         synchronized(lock) {
+            val registered = registeredStaticMethods.getOrPut(klass) { mutableSetOf() }
             var changed = false
             for (method in methods) {
-                if (!registeredPairs.add(System.identityHashCode(klass) to method)) continue
+                if (!registered.add(method)) continue
                 register(method, instance = null, ownerOverride = klass)
                 changed = true
             }
@@ -234,18 +243,16 @@ internal class SimpleEventBus(
 
     override fun unsubscribe(subscriber: Any) {
         synchronized(lock) {
-            val id = System.identityHashCode(subscriber)
             listeners.values.forEach { it.removeIf { e -> e.instance === subscriber } }
-            registeredPairs.removeIf { it.first == id }
+            registeredInstanceMethods.remove(subscriber)
             dispatchCache.clear()
         }
     }
 
     override fun unsubscribeStatic(klass: Class<*>) {
         synchronized(lock) {
-            val id = System.identityHashCode(klass)
             listeners.values.forEach { it.removeIf { e -> e.instance == null && e.owner == klass } }
-            registeredPairs.removeIf { it.first == id }
+            registeredStaticMethods.remove(klass)
             dispatchCache.clear()
         }
     }
@@ -254,7 +261,8 @@ internal class SimpleEventBus(
         synchronized(lock) {
             listeners.clear()
             wildcardListeners.clear()
-            registeredPairs.clear()
+            registeredInstanceMethods.clear()
+            registeredStaticMethods.clear()
             dispatchCache.clear()
         }
     }
