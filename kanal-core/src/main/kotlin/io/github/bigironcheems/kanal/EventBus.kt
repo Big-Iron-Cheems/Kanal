@@ -104,7 +104,7 @@ public interface EventBus {
         @JvmStatic
         @JvmName("createWithHandler")
         public fun createWithHandler(exceptionHandler: Consumer<Throwable>): EventBus =
-            SimpleEventBus { t -> exceptionHandler.accept(t) }
+            SimpleEventBus(exceptionHandler = exceptionHandler::accept)
 
         /**
          * Creates a new [EventBus] with both an async executor and a custom exception handler.
@@ -126,7 +126,7 @@ public interface EventBus {
         public fun createWithHandler(
             asyncExecutor: Executor?,
             exceptionHandler: Consumer<Throwable>,
-        ): EventBus = SimpleEventBus(asyncExecutor = asyncExecutor) { t -> exceptionHandler.accept(t) }
+        ): EventBus = SimpleEventBus(asyncExecutor, exceptionHandler::accept)
     }
 
     /**
@@ -308,7 +308,7 @@ public interface EventBus {
     public fun subscribeAll(
         priority: Int,
         handler: Consumer<Event>,
-    ): Subscription = subscribeAll(priority) { e -> handler.accept(e) }
+    ): Subscription = subscribeAll(priority, handler::accept)
 
     /**
      * Returns `true` if at least one wildcard handler is currently registered.

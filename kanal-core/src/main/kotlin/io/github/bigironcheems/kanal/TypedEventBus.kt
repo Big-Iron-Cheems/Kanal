@@ -140,7 +140,7 @@ public interface TypedEventBus<E : Event> {
         priority: Int,
         async: Boolean,
         handler: Consumer<T>,
-    ): Subscription = subscribe(eventClass, priority, async) { e -> handler.accept(e) }
+    ): Subscription = subscribe(eventClass, priority, async, handler::accept)
 
     /**
      * Registers a [Consumer] handler for event type [T] with synchronous dispatch.
@@ -153,7 +153,7 @@ public interface TypedEventBus<E : Event> {
         eventClass: Class<T>,
         priority: Int,
         handler: Consumer<T>,
-    ): Subscription = subscribe(eventClass, priority, false) { e -> handler.accept(e) }
+    ): Subscription = subscribe(eventClass, priority, false, handler::accept)
 
     /**
      * Registers a wildcard handler that fires for every event posted to the underlying bus.
@@ -180,7 +180,7 @@ public interface TypedEventBus<E : Event> {
     public fun subscribeAll(
         priority: Int,
         handler: Consumer<Event>,
-    ): Subscription = subscribeAll(priority) { e -> handler.accept(e) }
+    ): Subscription = subscribeAll(priority, handler::accept)
 
     /**
      * Returns `true` if at least one handler is registered for [eventClass] or any of its supertypes.

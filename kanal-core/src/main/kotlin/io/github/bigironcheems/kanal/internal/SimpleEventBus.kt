@@ -1,7 +1,6 @@
 package io.github.bigironcheems.kanal.internal
 
 import io.github.bigironcheems.kanal.*
-import io.github.bigironcheems.kanal.internal.SimpleEventBus.Companion.invokerFactoryCache
 import java.lang.invoke.LambdaMetafactory
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
@@ -52,17 +51,16 @@ import java.util.function.Consumer
  *   list iteration; no BFS, no sort, no scan.
  *   The cache is fully invalidated on any subscribe/unsubscribe (which is rare).
  *
- * - `invokerFactoryCache: ConcurrentHashMap<Method, (Any?) -> (Any?, Event) -> Unit>`; shared
+ * - `invokerFactoryCache: ConcurrentHashMap<Method, (Any?) -> (Event) -> Unit>`; shared
  *   across all bus instances. [LambdaMetafactory] is paid at most once per [Method] per JVM
  *   lifetime. For instance methods the factory is then called per-subscriber to bind the receiver.
  *
  * - `registeredInstanceMethods: IdentityHashMap<Any, MutableSet<Method>>` and
  *   `registeredStaticMethods: IdentityHashMap<Class<*>, MutableSet<Method>>`; track which
  *   [Method]s have already been registered per subscriber / static class, keyed by true
- *   reference identity via [IdentityHashMap]. This makes [subscribe]/[subscribeStatic]
- *   idempotent per object while allowing multiple distinct instances of the same class to
- *   each register their own handlers independently; two distinct objects are never treated
- *   as the same registration key.
+ *   reference identity via [IdentityHashMap]. This makes [subscribe]/[subscribeStatic] idempotent per object
+ *   while allowing multiple distinct instances of the same class to each register their own handlers independently;
+ *   two distinct objects are never treated as the same registration key.
  *
  * ## Subscription registration paths
  *
@@ -88,17 +86,22 @@ internal class SimpleEventBus(
          * Shared cache of *unbound* invoker factories, keyed by [Method].
          *
          * - For **static** methods the factory ignores its argument and returns the same
-         *   `(Any?, Event) -> Unit` on every call.
+         *   `(Event) -> Unit` on every call.
          * - For **instance** methods the factory accepts the subscriber instance and returns
          *   a `Consumer<Event>` with the receiver already captured; so every distinct
          *   subscriber gets its own bound consumer while paying the [LambdaMetafactory]
          *   cost only once per method per JVM lifetime.
          *
-         * Stored as `(Any?) -> (Any?, Event) -> Unit`:
+         * Stored as `(Any?) -> (Event) -> Unit`:
          *   - argument: subscriber instance (ignored for statics)
-         *   - return:   the ready-to-call invoker lambda
+         *   - return: the ready-to-call invoker lambda
          */
-        private val invokerFactoryCache = ConcurrentHashMap<Method, (Any?) -> (Any?, Event) -> Unit>()
+        private val invokerFactoryCache = ConcurrentHashMap<Method, (Any?) -> (Event) -> Unit>()
+
+        /**
+         * Immutable "no handlers" result. Never written into [dispatchCache]; see [resolveDispatchList].
+         */
+        private val EMPTY_DISPATCH = DispatchList(emptyList(), false)
     }
 
     //  Internal types
@@ -115,14 +118,15 @@ internal class SimpleEventBus(
      *                  inherited handler this is the subscriber's runtime class, which may be
      *                  a subclass of the declaring class.
      * @param async     If `true`, this handler should be dispatched on the bus's executor when available.
-     * @param invoke    The actual call: `invoke(instance, event)`; instance may be ignored for statics.
+     * @param invoke    The actual call: `invoke(event)`. The receiver, if any,
+     *                  is bound at registration time by the invoker factory below.
      */
     private class ListenerEntry(
         val priority: Int,
         val instance: Any?,
         val owner: Class<*>,
         val async: Boolean = false,
-        val invoke: (Any?, Event) -> Unit
+        val invoke: (Event) -> Unit
     )
 
     /**
@@ -137,6 +141,26 @@ internal class SimpleEventBus(
     ) {
         val isEmpty: Boolean get() = entries.isEmpty()
         operator fun iterator() = entries.iterator()
+    }
+
+    /**
+     * [Subscription] for a single [ListenerEntry] registered in [list] (either a per-type listener list or [wildcardListeners]).
+     * Removal is by reference identity, matching [ListenerEntry]'s equality contract.
+     * `cancel()` is idempotent.
+     */
+    private inner class ListEntrySubscription(
+        private val list: CopyOnWriteArrayList<ListenerEntry>,
+        private val entry: ListenerEntry
+    ) : Subscription {
+        private var cancelled = false
+        override fun cancel() {
+            synchronized(lock) {
+                if (cancelled) return
+                cancelled = true
+                list.remove(entry)
+                dispatchCache.clear()
+            }
+        }
     }
 
     //  State
@@ -155,8 +179,8 @@ internal class SimpleEventBus(
      * Merged dispatch list cache, keyed by the *concrete* event class posted.
      *
      * On first `post` of a given concrete type we walk its entire supertype
-     * hierarchy (superclasses + interfaces), merge all matching listener lists
-     * into a single priority-sorted snapshot, and cache it here.
+     * hierarchy (superclasses + interfaces), merge all matching listener lists,
+     * and cache it here.
      * [DispatchList.hasAnyAsync] is pre-computed at build time so the hot dispatch
      * path never scans the list to determine whether to enter the async branch.
      *
@@ -205,43 +229,28 @@ internal class SimpleEventBus(
     }
 
     override fun subscribe(
-        eventClass: Class<out Event>, priority: Int, async: Boolean, handler: (Event) -> Unit
+        eventClass: Class<out Event>,
+        priority: Int,
+        async: Boolean,
+        handler: (Event) -> Unit
     ): Subscription {
-        val entry = ListenerEntry(priority, handler, eventClass, async) { _, e -> handler(e) }
+        val entry = ListenerEntry(priority, handler, eventClass, async, handler)
+        val list: CopyOnWriteArrayList<ListenerEntry>
         synchronized(lock) {
-            insertSorted(listeners.getOrPut(eventClass) { CopyOnWriteArrayList() }, entry)
+            list = listeners.getOrPut(eventClass) { CopyOnWriteArrayList() }
+            insertSorted(list, entry)
             dispatchCache.clear()
         }
-        return object : Subscription {
-            private var cancelled = false
-            override fun cancel() {
-                synchronized(lock) {
-                    if (cancelled) return
-                    cancelled = true
-                    listeners[eventClass]?.remove(entry)
-                    dispatchCache.clear()
-                }
-            }
-        }
+        return ListEntrySubscription(list, entry)
     }
 
     override fun subscribeAll(priority: Int, handler: (Event) -> Unit): Subscription {
-        val entry = ListenerEntry(priority, null, Event::class.java) { _, e -> handler(e) }
+        val entry = ListenerEntry(priority, null, Event::class.java, invoke = handler)
         synchronized(lock) {
             insertSorted(wildcardListeners, entry)
             dispatchCache.clear()
         }
-        return object : Subscription {
-            private var cancelled = false
-            override fun cancel() {
-                synchronized(lock) {
-                    if (cancelled) return
-                    cancelled = true
-                    wildcardListeners.remove(entry)
-                    dispatchCache.clear()
-                }
-            }
-        }
+        return ListEntrySubscription(wildcardListeners, entry)
     }
 
     override fun unsubscribe(subscriber: Any) {
@@ -271,7 +280,7 @@ internal class SimpleEventBus(
     }
 
     override fun <T : Event> post(event: T): T {
-        val dl = resolveDispatchList(event) ?: return event
+        val dl = resolveDispatchList(event)
         if (dl.isEmpty) return event
 
         val executor = asyncExecutor
@@ -302,9 +311,7 @@ internal class SimpleEventBus(
 
     override fun <T : Event> postAsync(event: T): CompletableFuture<T> {
         val dl = resolveDispatchList(event)
-        if (dl == null || dl.isEmpty) {
-            return CompletableFuture.completedFuture(event)
-        }
+        if (dl.isEmpty) return CompletableFuture.completedFuture(event)
 
         val executor = asyncExecutor
         return if (executor != null && dl.hasAnyAsync) {
@@ -327,9 +334,10 @@ internal class SimpleEventBus(
     }
 
     /**
-     * Resolves the [DispatchList] for the given event, returning `null` if no handlers exist.
+     * Resolves the [DispatchList] for the given event, returning [EMPTY_DISPATCH] if no handlers exist for it.
+     * The empty result is never written into [dispatchCache], so an unlistened event type does not grow the cache.
      */
-    private fun resolveDispatchList(event: Event): DispatchList? {
+    private fun resolveDispatchList(event: Event): DispatchList {
         val concreteClass = event::class.java
         val cached = dispatchCache[concreteClass]
         return when {
@@ -338,7 +346,7 @@ internal class SimpleEventBus(
                 || wildcardListeners.isNotEmpty() ->
                 dispatchCache.getOrPut(concreteClass) { buildDispatchList(concreteClass) }
 
-            else -> null
+            else -> EMPTY_DISPATCH
         }
     }
 
@@ -417,7 +425,7 @@ internal class SimpleEventBus(
     /** Invokes [entry] directly, routing any exception to [exceptionHandler]. */
     private fun invokeEntry(entry: ListenerEntry, event: Event) {
         try {
-            entry.invoke(entry.instance, event)
+            entry.invoke(event)
         } catch (t: Throwable) {
             try {
                 exceptionHandler(t)
@@ -497,8 +505,8 @@ internal class SimpleEventBus(
      *
      * The invoker factory is looked up (or built) from [invokerFactoryCache] so
      * [LambdaMetafactory] is called at most once per [Method] per JVM lifetime.
-     * For instance methods the factory is then called with [instance] to bind the
-     * receiver into a `Consumer<Event>`.
+     * For instance methods the factory is then called with [instance] to bind
+     * the receiver into a `(Event) -> Unit`.
      *
      * Caller must have already validated [method] via [validHandlers].
      *
@@ -520,16 +528,16 @@ internal class SimpleEventBus(
 
     /**
      * Builds an **unbound** invoker factory for [method] and returns it as a
-     * `(instance: Any?) -> (Any?, Event) -> Unit`.
+     * `(instance: Any?) -> (Event) -> Unit`.
      *
      * ### Static methods
      * The returned factory ignores its argument and always returns the same
-     * pre-built `(Any?, Event) -> Unit`; the receiver-less `Consumer<Event>`
+     * pre-built `(Event) -> Unit`; the receiver-less `Consumer<Event>`
      * produced by [LambdaMetafactory] with a zero-capture `invokedType`.
      *
      * ### Instance methods
      * The returned factory accepts the subscriber instance and calls
-     * `site.target.invoke(instance)` to produce a *bound* `Consumer<Event>`.
+     * `site.target.invoke(instance)` to produce a *bound* `(Event) -> Unit`.
      * Each distinct subscriber object therefore gets its own consumer while the
      * [LambdaMetafactory] call (the expensive part) is shared via the cache.
      *
@@ -542,7 +550,7 @@ internal class SimpleEventBus(
      * Falls back to [reflectionInvokerFactory] if [LambdaMetafactory] is
      * unavailable (e.g. strongly encapsulated module).
      */
-    private fun buildInvokerFactory(method: Method): (Any?) -> (Any?, Event) -> Unit {
+    private fun buildInvokerFactory(method: Method): (Any?) -> (Event) -> Unit {
         val isStatic = Modifier.isStatic(method.modifiers)
         return try {
             val callerLookup = MethodHandles.lookup()
@@ -561,7 +569,7 @@ internal class SimpleEventBus(
 
                 @Suppress("UNCHECKED_CAST")
                 val consumer = site.target.invoke() as Consumer<Event>
-                val invoker: (Any?, Event) -> Unit = { _, e -> consumer.accept(e) }
+                val invoker: (Event) -> Unit = consumer::accept
                 { _ -> invoker }
             } else {
                 val declaringClass = method.declaringClass
@@ -573,7 +581,7 @@ internal class SimpleEventBus(
                 { inst ->
                     @Suppress("UNCHECKED_CAST")
                     val consumer = siteTarget.invoke(inst) as Consumer<Event>
-                    { _, e -> consumer.accept(e) }
+                    consumer::accept
                 }
             }
         } catch (_: Throwable) {
@@ -589,13 +597,13 @@ internal class SimpleEventBus(
      * every dispatch. [InvocationTargetException] is unwrapped so the original
      * cause reaches the bus's [exceptionHandler], not the wrapper.
      *
-     * Returns the same unbound `(Any?) -> (Any?, Event) -> Unit` shape as
+     * Returns the same unbound `(Any?) -> (Event) -> Unit` shape as
      * [buildInvokerFactory] so callers treat both paths identically.
      */
-    private fun reflectionInvokerFactory(method: Method): (Any?) -> (Any?, Event) -> Unit {
+    private fun reflectionInvokerFactory(method: Method): (Any?) -> (Event) -> Unit {
         method.isAccessible = true
         return if (Modifier.isStatic(method.modifiers)) {
-            val invoker: (Any?, Event) -> Unit = { _, e ->
+            val invoker: (Event) -> Unit = { e ->
                 try {
                     method.invoke(null, e)
                 } catch (ite: InvocationTargetException) {
@@ -605,7 +613,7 @@ internal class SimpleEventBus(
             { _ -> invoker }
         } else {
             { inst ->
-                { _, e ->
+                { e ->
                     try {
                         method.invoke(inst, e)
                     } catch (ite: InvocationTargetException) {
