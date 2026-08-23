@@ -53,11 +53,24 @@ priorities this is non-trivial work.
 runtime class. Every subsequent post of the same type is a single map lookup plus a
 COWAL iteration -- no BFS, no merge, no sort.
 
-The cache is fully invalidated on any `subscribe` or `unsubscribe` call. Partial
-invalidation (evicting only entries affected by the changed handler) would be cheaper
-but would add per-entry bookkeeping on the subscribe path. In practice, subscriptions
-happen at startup; the cache is populated once and not invalidated again during
-steady-state operation.
+Mutating a specific event type (`subscribe`/`unsubscribe`, instance or static) does not
+invalidate the whole cache. Each `DispatchList` stores the full supertype closure it was
+built from; invalidation evicts exactly the cached entries whose closure intersects the
+mutated types, leaving entries for unrelated event types warm. This is necessary and
+sufficient: a cached entry for concrete class `C` depends on `listeners[t]` for every `t`
+in `C`'s supertype closure, so it is correctly stale exactly when one of those `t` was
+touched, and only then.
+
+Wildcard mutations (`subscribeAll`) and `unsubscribeAll` still clear the cache in full,
+since `wildcardListeners` contributes to every cached entry regardless of concrete type --
+there is no supertype closure to scope that invalidation against.
+
+Concurrent posting against a bus under continuous unrelated-type mutation was measured
+(JMH `ConcurrentPostVsMutateBenchmark`, disjoint-type case) to retain a small fraction of
+its uncontended throughput under whole-cache invalidation; scoping invalidation to the
+affected supertype closure recovers most of that loss. Mutating the *same* type currently
+being posted is an inherent conflict scoping cannot remove -- the cached entry being read
+is the one that must go stale -- and remains the dominant cost in that specific case.
 
 `DispatchList` pre-computes `hasAnyAsync` at build time. The hot path in `post` checks
 a single boolean to decide whether to build a `CompletableFuture` chain. Buses with no

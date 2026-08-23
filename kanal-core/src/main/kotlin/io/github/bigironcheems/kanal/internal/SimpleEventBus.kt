@@ -49,7 +49,10 @@ import java.util.function.Consumer
  *   at build time so the hot path never scans entries to decide whether to enter the async branch.
  *   Every subsequent post of the same type is a single `ConcurrentHashMap.get` followed by a
  *   list iteration; no BFS, no sort, no scan.
- *   The cache is fully invalidated on any subscribe/unsubscribe (which is rare).
+ *   Typed and instance/static handler mutations invalidate only the cache entries whose
+ *   supertype closure includes the affected event type (see [invalidate]); unrelated cached
+ *   entries stay warm. Wildcard mutations and [unsubscribeAll] still clear the cache in full,
+ *   since [wildcardListeners] contributes to every entry.
  *
  * - `invokerFactoryCache: ConcurrentHashMap<Method, (Any?) -> (Event) -> Unit>`; shared
  *   across all bus instances. [LambdaMetafactory] is paid at most once per [Method] per JVM
@@ -101,7 +104,7 @@ internal class SimpleEventBus(
         /**
          * Immutable "no handlers" result. Never written into [dispatchCache]; see [resolveDispatchList].
          */
-        private val EMPTY_DISPATCH = DispatchList(emptyList(), false)
+        private val EMPTY_DISPATCH = DispatchList(emptyList(), false, emptyList())
     }
 
     //  Internal types
@@ -138,6 +141,11 @@ internal class SimpleEventBus(
     private class DispatchList(
         val entries: List<ListenerEntry>,
         val hasAnyAsync: Boolean,
+        /**
+         * Full supertype closure of the concrete event class this list was built for.
+         * Used by [invalidate] to evict exactly the entries a mutation affects.
+         */
+        val supertypesOfConcreteClass: List<Class<*>>,
     ) {
         val isEmpty: Boolean get() = entries.isEmpty()
         operator fun iterator() = entries.iterator()
@@ -150,7 +158,9 @@ internal class SimpleEventBus(
      */
     private inner class ListEntrySubscription(
         private val list: CopyOnWriteArrayList<ListenerEntry>,
-        private val entry: ListenerEntry
+        private val entry: ListenerEntry,
+        /** The event type to scope invalidation to; `null` for wildcard entries (full clear). */
+        private val eventType: Class<*>?,
     ) : Subscription {
         private var cancelled = false
         override fun cancel() {
@@ -158,7 +168,7 @@ internal class SimpleEventBus(
                 if (cancelled) return
                 cancelled = true
                 list.remove(entry)
-                dispatchCache.clear()
+                if (eventType != null) invalidate(setOf(eventType)) else dispatchCache.clear()
             }
         }
     }
@@ -184,8 +194,8 @@ internal class SimpleEventBus(
      * [DispatchList.hasAnyAsync] is pre-computed at build time so the hot dispatch
      * path never scans the list to determine whether to enter the async branch.
      *
-     * The cache is **invalidated** (cleared) whenever any listener is added or
-     * removed; subscribe/unsubscribe is rare, post is hot.
+     * Typed/instance/static mutations invalidate only the entries [invalidate] identifies
+     * as affected. Wildcard mutations and [unsubscribeAll] clear it in full.
      */
     private val dispatchCache = ConcurrentHashMap<Class<*>, DispatchList>()
 
@@ -204,13 +214,13 @@ internal class SimpleEventBus(
         val methods = validHandlers(subscriber::class.java, static = false)
         synchronized(lock) {
             val registered = registeredInstanceMethods.getOrPut(subscriber) { mutableSetOf() }
-            var changed = false
+            val touchedTypes = mutableSetOf<Class<*>>()
             for ((method, annotation) in methods) {
                 if (!registered.add(method)) continue
                 register(method, annotation, subscriber, subscriber::class.java)
-                changed = true
+                touchedTypes += method.parameterTypes[0]
             }
-            if (changed) dispatchCache.clear()
+            invalidate(touchedTypes)
         }
     }
 
@@ -218,13 +228,13 @@ internal class SimpleEventBus(
         val methods = validHandlers(klass, static = true)
         synchronized(lock) {
             val registered = registeredStaticMethods.getOrPut(klass) { mutableSetOf() }
-            var changed = false
+            val touchedTypes = mutableSetOf<Class<*>>()
             for ((method, annotation) in methods) {
                 if (!registered.add(method)) continue
                 register(method, annotation, null, klass)
-                changed = true
+                touchedTypes += method.parameterTypes[0]
             }
-            if (changed) dispatchCache.clear()
+            invalidate(touchedTypes)
         }
     }
 
@@ -239,33 +249,39 @@ internal class SimpleEventBus(
         synchronized(lock) {
             list = listeners.getOrPut(eventClass) { CopyOnWriteArrayList() }
             insertSorted(list, entry)
-            dispatchCache.clear()
+            invalidate(setOf(eventClass))
         }
-        return ListEntrySubscription(list, entry)
+        return ListEntrySubscription(list, entry, eventClass)
     }
 
     override fun subscribeAll(priority: Int, handler: (Event) -> Unit): Subscription {
         val entry = ListenerEntry(priority, null, Event::class.java, invoke = handler)
         synchronized(lock) {
             insertSorted(wildcardListeners, entry)
-            dispatchCache.clear()
+            dispatchCache.clear() // wildcard affects every cached entry; cannot be scoped
         }
-        return ListEntrySubscription(wildcardListeners, entry)
+        return ListEntrySubscription(wildcardListeners, entry, null)
     }
 
     override fun unsubscribe(subscriber: Any) {
         synchronized(lock) {
-            listeners.values.forEach { it.removeIf { e -> e.instance === subscriber } }
+            val touchedTypes = mutableSetOf<Class<*>>()
+            listeners.forEach { (eventType, list) ->
+                if (list.removeIf { e -> e.instance === subscriber }) touchedTypes += eventType
+            }
             registeredInstanceMethods.remove(subscriber)
-            dispatchCache.clear()
+            invalidate(touchedTypes)
         }
     }
 
     override fun unsubscribeStatic(klass: Class<*>) {
         synchronized(lock) {
-            listeners.values.forEach { it.removeIf { e -> e.instance == null && e.owner == klass } }
+            val touchedTypes = mutableSetOf<Class<*>>()
+            listeners.forEach { (eventType, list) ->
+                if (list.removeIf { e -> e.instance == null && e.owner == klass }) touchedTypes += eventType
+            }
             registeredStaticMethods.remove(klass)
-            dispatchCache.clear()
+            invalidate(touchedTypes)
         }
     }
 
@@ -454,11 +470,29 @@ internal class SimpleEventBus(
      * Called at most once per concrete event type (result is cached in [dispatchCache]).
      */
     private fun buildDispatchList(eventClass: Class<*>): DispatchList {
-        val merged = supertypes(eventClass)
+        val types = supertypes(eventClass)
+        val merged = types
             .flatMap { listeners[it].orEmpty() }
             .plus(wildcardListeners)
             .sortedByDescending { it.priority }
-        return DispatchList(merged, merged.any { it.async })
+        return DispatchList(merged, merged.any { it.async }, types)
+    }
+
+    /**
+     * Evicts only the [dispatchCache] entries whose supertype closure includes any of
+     * [eventTypes], leaving unrelated cached dispatch lists warm.
+     *
+     * A cached entry for concrete class `C` depends on `listeners[t]` for every `t` in
+     * `C`'s supertype closure (see [buildDispatchList]); it is stale exactly when one of
+     * those `t` is in [eventTypes]. This is necessary and sufficient invalidation for any
+     * mutation scoped to specific event types. Wildcard mutations require a full clear
+     * instead, since [wildcardListeners] contributes to every cached entry regardless of type.
+     *
+     * Must be called with [lock] held.
+     */
+    private fun invalidate(eventTypes: Set<Class<*>>) {
+        if (eventTypes.isEmpty()) return
+        dispatchCache.entries.removeIf { (_, dl) -> dl.supertypesOfConcreteClass.any { it in eventTypes } }
     }
 
     /**
