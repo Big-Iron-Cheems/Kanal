@@ -360,7 +360,7 @@ internal class SimpleEventBus(
             cached != null -> cached
             supertypes(concreteClass).any { listeners[it]?.isNotEmpty() == true }
                 || wildcardListeners.isNotEmpty() ->
-                dispatchCache.getOrPut(concreteClass) { buildDispatchList(concreteClass) }
+                dispatchCache.computeIfAbsent(concreteClass, ::buildDispatchList)
 
             else -> EMPTY_DISPATCH
         }
