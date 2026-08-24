@@ -28,8 +28,9 @@ Terms used throughout this manual. For API signatures and usage, see the KDocs.
 #gterm([dispatch cache])[
   A `ConcurrentHashMap` keyed by the concrete runtime type of the posted event. Stores
   the pre-sorted, pre-merged handler list so that subsequent posts of the same type skip
-  the supertype BFS walk. Invalidated on every subscribe or unsubscribe call.
-  See @design-cache.
+  the supertype BFS walk. Invalidated per affected event type on typed, instance, or
+  static subscribe/unsubscribe; wildcard mutations and `unsubscribeAll` invalidate it
+  in full. See @design-cache.
 ]
 
 #gterm([dispatch chain])[
