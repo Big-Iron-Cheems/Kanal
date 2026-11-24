@@ -168,7 +168,7 @@ internal class SimpleEventBus(
                 if (cancelled) return
                 cancelled = true
                 list.remove(entry)
-                if (eventType != null) invalidate(setOf(eventType)) else dispatchCache.clear()
+                if (eventType != null) invalidate(setOf(eventType)) else invalidateAll()
             }
         }
     }
@@ -198,6 +198,21 @@ internal class SimpleEventBus(
      * as affected. Wildcard mutations and [unsubscribeAll] clear it in full.
      */
     private val dispatchCache = ConcurrentHashMap<Class<*>, DispatchList>()
+
+    /**
+     * Mutation epoch, bumped by every [invalidate]/[invalidateAll] (always under [lock]), after the
+     * listener lists have been changed and before cache entries are evicted.
+     *
+     * [buildDispatchList] reads the listener lists without [lock], so a `post` can snapshot them
+     * *before* a concurrent mutation and insert that snapshot into [dispatchCache] *after* the
+     * mutation's eviction pass already ran, leaving a stale entry that omits the new handler.
+     * [buildAndCache] closes this by sampling the epoch before building and withdrawing its own
+     * entry if the epoch moved afterwards; see it for the correctness argument.
+     *
+     * Written only under [lock]; read lock-free on the cache-miss path only (never on a cache hit).
+     */
+    @Volatile
+    private var epoch = 0L
 
     // Tracks already-registered methods per subscriber instance, keyed by true reference identity.
     private val registeredInstanceMethods = IdentityHashMap<Any, MutableSet<Method>>()
@@ -258,7 +273,7 @@ internal class SimpleEventBus(
         val entry = ListenerEntry(priority, null, Event::class.java, invoke = handler)
         synchronized(lock) {
             insertSorted(wildcardListeners, entry)
-            dispatchCache.clear() // wildcard affects every cached entry; cannot be scoped
+            invalidateAll() // wildcard affects every cached entry; cannot be scoped
         }
         return ListEntrySubscription(wildcardListeners, entry, null)
     }
@@ -291,7 +306,7 @@ internal class SimpleEventBus(
             wildcardListeners.clear()
             registeredInstanceMethods.clear()
             registeredStaticMethods.clear()
-            dispatchCache.clear()
+            invalidateAll()
         }
     }
 
@@ -360,10 +375,32 @@ internal class SimpleEventBus(
             cached != null -> cached
             supertypes(concreteClass).any { listeners[it]?.isNotEmpty() == true }
                 || wildcardListeners.isNotEmpty() ->
-                dispatchCache.computeIfAbsent(concreteClass, ::buildDispatchList)
+                buildAndCache(concreteClass)
 
             else -> EMPTY_DISPATCH
         }
+    }
+
+    /**
+     * Builds and caches the [DispatchList] for [concreteClass], without ever leaving a stale entry behind.
+     *
+     * Protocol: sample [epoch], build, insert, re-read [epoch]; if it moved, remove our entry.
+     * Mutators do: change listener list, bump [epoch], evict entries (all volatile/CHM operations).
+     * Suppose our snapshot missed a mutation `M`. Then `M`'s list change came after our list read, so `M`'s
+     * epoch bump came after our first epoch sample. Either `M`'s eviction runs after our insert (and evicts
+     * the entry), or it ran before our insert, in which case `M`'s bump (which precedes its eviction)
+     * is visible to our re-read and we remove the entry ourselves. Either way no stale entry survives.
+     * The list returned to *this* post may be stale, which is equivalent to the post having happened just
+     * before `M`; subsequent posts rebuild.
+     *
+     * The re-check can also withdraw a valid entry (an unrelated mutation bumped the epoch); that costs one
+     * rebuild on a later post and never affects correctness. Cache hits do not touch [epoch].
+     */
+    private fun buildAndCache(concreteClass: Class<*>): DispatchList {
+        val before = epoch
+        val dl = dispatchCache.computeIfAbsent(concreteClass, ::buildDispatchList)
+        if (epoch != before) dispatchCache.remove(concreteClass, dl)
+        return dl
     }
 
     /**
@@ -492,7 +529,17 @@ internal class SimpleEventBus(
      */
     private fun invalidate(eventTypes: Set<Class<*>>) {
         if (eventTypes.isEmpty()) return
+        epoch++ // after the caller's list mutation, before eviction; see [buildAndCache]
         dispatchCache.entries.removeIf { (_, dl) -> dl.supertypesOfConcreteClass.any { it in eventTypes } }
+    }
+
+    /**
+     * Evicts every [dispatchCache] entry. Same ordering contract as [invalidate]; must be called with
+     * [lock] held, after the listener lists have been changed.
+     */
+    private fun invalidateAll() {
+        epoch++
+        dispatchCache.clear()
     }
 
     /**
