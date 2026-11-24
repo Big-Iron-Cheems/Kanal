@@ -4,6 +4,7 @@ import io.github.bigironcheems.kanal.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 
@@ -23,6 +24,9 @@ import kotlin.time.Duration
  * val packet = bus.nextEvent<PacketReceived> { it.bytes.size > 100 }
  * ```
  *
+ * The subscription is removed on every exit path: on the first matching event, on cancellation
+ * of the calling coroutine, and (for [nextEventOrNull]) on timeout.
+ *
  * @param priority  Dispatch priority; defaults to [Priority.NORMAL].
  * @param predicate Filter applied to incoming events; defaults to always true.
  */
@@ -31,10 +35,20 @@ public suspend inline fun <reified T : Event> EventBus.nextEvent(
     crossinline predicate: (T) -> Boolean = { true }
 ): T = suspendCancellableCoroutine { cont ->
     val claimed = AtomicBoolean(false)
+    val published = AtomicReference<Subscription?>(null)
     val sub = subscribe<T>(priority) { event ->
         if (!predicate(event)) return@subscribe
-        if (claimed.compareAndSet(false, true)) cont.resume(event)
+        if (claimed.compareAndSet(false, true)) {
+            // Unregister before resuming so the awaiting coroutine observes a clean bus.
+            published.get()?.cancel()
+            cont.resume(event)
+        }
     }
+    published.set(sub)
+    // The handler may have won the claim on another thread before `published` was set, in which
+    // case it could not cancel itself. Either this check or the handler's cancel sees the other's
+    // write (both are atomics); both may run, which is safe because Subscription.cancel() is idempotent.
+    if (claimed.get()) sub.cancel()
     cont.invokeOnCancellation { sub.cancel() }
 }
 
